@@ -59,7 +59,7 @@ export function SettingsPanel({ settings, onUpdate, onReset, onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
+    function handleClick(e: Event) {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
         onClose()
       }
@@ -68,9 +68,11 @@ export function SettingsPanel({ settings, onUpdate, onReset, onClose }: Props) {
       if (e.key === 'Escape') onClose()
     }
     document.addEventListener('mousedown', handleClick)
+    document.addEventListener('touchstart', handleClick)
     document.addEventListener('keydown', handleKey)
     return () => {
       document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('touchstart', handleClick)
       document.removeEventListener('keydown', handleKey)
     }
   }, [onClose])

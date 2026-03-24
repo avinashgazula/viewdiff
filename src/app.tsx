@@ -31,13 +31,14 @@ function EditorLoading() {
 }
 
 export function App() {
-  const { dark, toggle: toggleTheme } = useTheme()
+  const { dark, mode: themeMode, toggle: toggleTheme } = useTheme()
   const { settings, update: updateSetting, reset: resetSettings } = useSettings()
 
   const [language, setLanguage] = useState('auto')
   const [detectedLang, setDetectedLang] = useState('plaintext')
-  const [inline, setInline] = useState(false)
-  const [wordWrap, setWordWrap] = useState(false)
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
+  const [inline, setInline] = useState(isMobile)
+  const [wordWrap, setWordWrap] = useState(isMobile)
   const [stats, setStats] = useState(EMPTY_STATS)
   const [formatting, setFormatting] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -294,7 +295,7 @@ export function App() {
 
   const commands: Command[] = useMemo(() => [
     { id: 'format', label: 'Format Document', shortcut: 'Ctrl+Shift+F', action: format },
-    { id: 'theme', label: 'Toggle Dark / Light', shortcut: 'Ctrl+J', action: toggleTheme },
+    { id: 'theme', label: 'Cycle Theme (System → Light → Dark)', shortcut: 'Ctrl+J', action: toggleTheme },
     { id: 'view', label: 'Toggle Inline / Side-by-Side', shortcut: 'Ctrl+\\', action: toggleView },
     { id: 'wrap', label: 'Toggle Word Wrap', shortcut: 'Alt+Z', action: toggleWrap },
     { id: 'swap', label: 'Swap Original and Modified', shortcut: 'Ctrl+Shift+S', action: swap },
@@ -360,6 +361,7 @@ export function App() {
           wordWrap={wordWrap}
           formatting={formatting}
           dark={dark}
+          themeMode={themeMode}
           settingsOpen={settingsOpen}
           onChangeLang={changeLang}
           onFormat={format}

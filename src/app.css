@@ -67,6 +67,7 @@
 /* ── Base ──────────────────────────────────────────────── */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
+html { touch-action: manipulation; }
 
 .skip-link {
   position: absolute;
@@ -117,7 +118,48 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--text-dim); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
-/* ── Toolbar controls ──────────────────────────────────── */
+/* ── Toolbar ───────────────────────────────────────────── */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  height: 46px;
+  flex-shrink: 0;
+}
+
+.toolbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.toolbar-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.toolbar-subtitle {
+  font-size: 12.5px;
+  font-weight: 450;
+  color: var(--text-dim);
+}
+
+.toolbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.toolbar-controls::-webkit-scrollbar { display: none; }
+
+/* ── Buttons ──────────────────────────────────────────── */
 
 .btn {
   display: inline-flex;
@@ -139,6 +181,7 @@ body {
   outline: none;
   transition: all 0.15s var(--ease-out);
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 .btn:hover {
   background: var(--surface-hover);
@@ -177,6 +220,7 @@ body {
   outline: none;
   appearance: none;
   transition: all 0.15s var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%237a7a88' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 7px center;
@@ -532,6 +576,152 @@ kbd {
 @keyframes paletteIn {
   from { opacity: 0; transform: translateY(-6px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Mobile / responsive ───────────────────────────────── */
+
+@media (max-width: 768px) {
+  .toolbar {
+    height: auto;
+    min-height: 46px;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 6px 8px;
+  }
+
+  .toolbar-brand {
+    gap: 8px;
+  }
+
+  .toolbar-subtitle {
+    display: none;
+  }
+
+  .toolbar-controls {
+    gap: 2px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .btn {
+    height: 36px;
+    min-width: 36px;
+    font-size: 12px;
+  }
+  .btn.icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .lang-select {
+    height: 36px;
+    font-size: 12px;
+    max-width: 100px;
+  }
+
+  .hide-mobile {
+    display: none !important;
+  }
+
+  .column-labels {
+    height: 24px;
+    font-size: 9.5px;
+  }
+
+  .status-bar {
+    height: 32px;
+    font-size: 11px;
+    padding: 0 8px;
+  }
+
+  .empty-state-title {
+    font-size: 14px;
+  }
+
+  .empty-state-hint {
+    font-size: 12px;
+    padding: 0 16px;
+  }
+
+  .settings-panel {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 70vh;
+    border-radius: 16px 16px 0 0;
+    animation: settingsSlideUp 0.2s var(--ease-out);
+  }
+
+  .settings-body {
+    max-height: 60vh;
+  }
+
+  .settings-row {
+    min-height: 40px;
+    padding: 8px 16px;
+  }
+
+  .settings-toggle {
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+  }
+
+  .settings-toggle-thumb {
+    width: 20px;
+    height: 20px;
+  }
+
+  .settings-toggle.on .settings-toggle-thumb {
+    transform: translateX(20px);
+  }
+
+  .settings-select {
+    height: 32px;
+    font-size: 13px;
+  }
+
+  .palette {
+    width: calc(100vw - 16px);
+    max-height: 60vh;
+    border-radius: 12px;
+  }
+
+  .palette-input {
+    height: 48px;
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+
+  .palette-item {
+    padding: 12px;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  .toolbar-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .lang-select {
+    flex: 1;
+    max-width: none;
+  }
+
+  .hide-mobile-text {
+    font-size: 0;
+    width: 36px;
+    padding: 0;
+  }
+}
+
+@keyframes settingsSlideUp {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
