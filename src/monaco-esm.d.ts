@@ -6,10 +6,10 @@ declare module 'monaco-editor/esm/vs/editor/editor.api' {
 }
 
 declare module 'monaco-editor/esm/vs/language/json/monaco.contribution' {
-  import type { languages } from 'monaco-editor'
-  export const jsonDefaults: languages.json.DiagnosticsOptions extends never
-    ? { setDiagnosticsOptions(options: Record<string, unknown>): void }
-    : languages.json.LanguageServiceDefaults
+  interface JSONDefaults {
+    setDiagnosticsOptions(options: Record<string, unknown>): void
+  }
+  export const jsonDefaults: JSONDefaults
 }
 
 declare module 'monaco-editor/esm/vs/language/css/monaco.contribution' {
@@ -31,7 +31,3 @@ declare module 'monaco-editor/esm/vs/language/html/monaco.contribution' {
 // Side-effect-only imports (no exports needed)
 declare module 'monaco-editor/esm/vs/language/typescript/monaco.contribution' {}
 declare module 'monaco-editor/esm/vs/basic-languages/*/contribution' {}
-
-// Editor feature contributions
-declare module 'monaco-editor/esm/vs/editor/browser/widget/diffEditor/diffEditor.contribution' {}
-declare module 'monaco-editor/esm/vs/editor/contrib/*/browser/*' {}

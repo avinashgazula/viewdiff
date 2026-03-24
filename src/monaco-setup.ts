@@ -54,29 +54,9 @@ import 'monaco-editor/esm/vs/basic-languages/less/less.contribution'
 import 'monaco-editor/esm/vs/basic-languages/scss/scss.contribution'
 import 'monaco-editor/esm/vs/basic-languages/html/html.contribution'
 
-// ── Editor features we use ───────────────────────────────
-// Diff editor
-import 'monaco-editor/esm/vs/editor/browser/widget/diffEditor/diffEditor.contribution'
-
-// Core features
-import 'monaco-editor/esm/vs/editor/contrib/bracketMatching/browser/bracketMatching'
-import 'monaco-editor/esm/vs/editor/contrib/folding/browser/folding'
-import 'monaco-editor/esm/vs/editor/contrib/suggest/browser/suggestController'
-import 'monaco-editor/esm/vs/editor/contrib/wordHighlighter/browser/wordHighlighter'
-import 'monaco-editor/esm/vs/editor/contrib/find/browser/findController'
-import 'monaco-editor/esm/vs/editor/contrib/colorPicker/browser/colorDetector'
-import 'monaco-editor/esm/vs/editor/contrib/hover/browser/hoverContribution'
-import 'monaco-editor/esm/vs/editor/contrib/inlineCompletions/browser/inlineCompletions.contribution'
-import 'monaco-editor/esm/vs/editor/contrib/clipboard/browser/clipboard'
-import 'monaco-editor/esm/vs/editor/contrib/contextmenu/browser/contextmenu'
-import 'monaco-editor/esm/vs/editor/contrib/comment/browser/comment'
-import 'monaco-editor/esm/vs/editor/contrib/indentation/browser/indentation'
-import 'monaco-editor/esm/vs/editor/contrib/wordOperations/browser/wordOperations'
-import 'monaco-editor/esm/vs/editor/contrib/linesOperations/browser/linesOperations'
-import 'monaco-editor/esm/vs/editor/contrib/multicursor/browser/multicursor'
-import 'monaco-editor/esm/vs/editor/contrib/smartSelect/browser/smartSelect'
-import 'monaco-editor/esm/vs/editor/contrib/linkedEditing/browser/linkedEditing'
-import 'monaco-editor/esm/vs/editor/contrib/format/browser/formatActions'
+// Note: Editor features (bracketMatching, folding, find, clipboard, suggest,
+// diffEditor, etc.) are already imported by the language contribution modules
+// above — no need to import them individually.
 
 // Configure Monaco to use local workers instead of CDN
 self.MonacoEnvironment = {
