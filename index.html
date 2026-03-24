@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Diff Checker — Compare Text, Code, JSON, XML Online Free</title>
+    <meta name="description" content="Free online diff checker to compare text, code, JSON, XML and more. Side-by-side or inline view with syntax highlighting, auto-formatting, and language detection. No sign-up required." />
+    <meta name="keywords" content="diff checker, text compare, code diff, compare files, json diff, xml diff, online diff tool, text difference, compare text online, side by side diff, code comparison, syntax highlighting diff" />
+
+    <!-- Security -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+
+    <link rel="canonical" href="https://diff.tools" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
+    <meta name="author" content="Avinash Gazula" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1a1a24" media="(prefers-color-scheme: dark)" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Diff Checker — Compare Text, Code & Data Online" />
+    <meta property="og:description" content="Free diff checker with syntax highlighting for 30+ languages. Compare text, code, JSON, XML side-by-side or inline. Auto-format with Prettier." />
+    <meta property="og:url" content="https://diff.tools" />
+    <meta property="og:site_name" content="diff" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Diff Checker — Compare Text, Code & Data Online" />
+    <meta name="twitter:description" content="Free diff checker with syntax highlighting for 30+ languages. Compare text, code, JSON, XML side-by-side or inline." />
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "diff",
+      "alternateName": ["Diff Checker", "Online Diff Tool", "Text Compare Tool"],
+      "url": "https://diff.tools",
+      "description": "Free online diff checker to compare text, code, JSON, XML and more with syntax highlighting and auto-formatting.",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Any",
+      "browserRequirements": "Requires a modern web browser",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "Side-by-side and inline diff views",
+        "Syntax highlighting for 30+ languages",
+        "Auto-format code with Prettier",
+        "Automatic language detection",
+        "Dark and light themes",
+        "Keyboard shortcuts",
+        "Command palette"
+      ]
+    }
+    </script>
+
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>±</text></svg>">
+
+    <!-- Preconnect to font and Monaco CDN origins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500&display=swap" as="style" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Prevent layout shift: reserve space for the app shell before React mounts -->
+    <style>
+      #root { height: 100vh; height: 100dvh; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      <div style="padding: 2rem; text-align: center; font-family: system-ui, sans-serif;">
+        <h1>Diff Checker</h1>
+        <p>This diff checker requires JavaScript to run. Please enable JavaScript in your browser settings.</p>
+      </div>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

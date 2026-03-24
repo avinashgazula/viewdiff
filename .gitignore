@@ -1,0 +1,30 @@
+node_modules
+dist
+.output
+
+# AI tooling
+.agents
+.claude
+.junie
+skills-lock.json
+.impeccable.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+
+# Reports / generated
+lighthouse-report.json
+
+# Deployment config
+vercel.json
