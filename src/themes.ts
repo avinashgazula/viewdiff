@@ -42,41 +42,4 @@ export function registerThemes(monaco: Monaco) {
     rules: [],
     colors: darkColors,
   })
-
-  configureLanguageDefaults(monaco)
-}
-
-function configureLanguageDefaults(monaco: Monaco) {
-  monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
-    validate: true,
-    allowComments: true,
-    trailingCommas: 'ignore',
-    schemaValidation: 'warning',
-  })
-
-  const cssOptions: Parameters<typeof monaco.languages.css.cssDefaults.setOptions>[0] = {
-    validate: true,
-    lint: {
-      compatibleVendorPrefixes: 'warning',
-      duplicateProperties: 'warning',
-      emptyRules: 'warning',
-      importStatement: 'warning',
-      unknownProperties: 'warning',
-      unknownVendorSpecificProperties: 'warning',
-    },
-  }
-
-  monaco.languages.css.cssDefaults.setOptions(cssOptions)
-  monaco.languages.css.scssDefaults.setOptions(cssOptions)
-  monaco.languages.css.lessDefaults.setOptions(cssOptions)
-
-  monaco.languages.html.htmlDefaults.setOptions({
-    format: {
-      tabSize: 2,
-      insertSpaces: true,
-      wrapLineLength: 80,
-      indentInnerHtml: true,
-    },
-    suggest: { html5: true },
-  })
 }

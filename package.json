@@ -9,11 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
     "@monaco-editor/react": "^4.7.0",
+    "@prettier/plugin-xml": "^3.4.0",
+    "monaco-editor": "^0.55.1",
     "prettier": "^3.4.0",
-    "@prettier/plugin-xml": "^3.4.0"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "overrides": {
     "dompurify": ">=3.3.2"
