@@ -15,8 +15,8 @@
 
   --text: oklch(18% 0.01 260);
   --text-secondary: oklch(40% 0.01 260);
-  --text-muted: oklch(58% 0.01 260);
-  --text-dim: oklch(60% 0.008 260);
+  --text-muted: oklch(48% 0.01 260);
+  --text-dim: oklch(50% 0.008 260);
 
   --accent: oklch(52% 0.18 260);
   --accent-hover: oklch(46% 0.16 260);
@@ -46,8 +46,8 @@
 
   --text: oklch(92% 0.006 260);
   --text-secondary: oklch(72% 0.008 260);
-  --text-muted: oklch(58% 0.008 260);
-  --text-dim: oklch(55% 0.006 260);
+  --text-muted: oklch(65% 0.008 260);
+  --text-dim: oklch(62% 0.006 260);
 
   --accent: oklch(72% 0.14 260);
   --accent-hover: oklch(78% 0.12 260);
@@ -259,7 +259,7 @@ kbd {
   font-size: 10px;
   font-weight: 600;
   line-height: 1;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 4px;

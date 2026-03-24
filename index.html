@@ -72,10 +72,33 @@
     <!-- Prevent layout shift: reserve space for the app shell before React mounts -->
     <style>
       #root { height: 100vh; height: 100dvh; }
+      /* Dark mode shell colors */
+      @media (prefers-color-scheme: dark) {
+        .app-shell { background: oklch(11% 0.01 260) !important; color: oklch(92% 0.006 260) !important; }
+        .app-shell-nav { background: oklch(15% 0.01 260) !important; border-color: oklch(22% 0.012 260) !important; }
+        .app-shell-title { color: oklch(92% 0.006 260) !important; }
+        .app-shell-sub { color: oklch(62% 0.006 260) !important; }
+        .app-shell-heading { color: oklch(65% 0.008 260) !important; }
+        .app-shell-hint { color: oklch(62% 0.006 260) !important; }
+      }
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Pre-rendered app shell to reduce LCP render delay -->
+      <div class="app-shell" style="height:100vh;display:flex;flex-direction:column;background:oklch(97.5% 0.004 260);color:oklch(18% 0.01 260)">
+        <nav class="app-shell-nav" style="display:flex;align-items:center;justify-content:space-between;padding:0 10px;height:46px;background:oklch(100% 0 0);border-bottom:1px solid oklch(90% 0.008 260)">
+          <div style="display:flex;align-items:center;gap:12px">
+            <h1 class="app-shell-title" style="font-size:14px;font-weight:700;letter-spacing:-0.03em;margin:0;font-family:system-ui,sans-serif">diff</h1>
+            <span class="app-shell-sub" style="font-size:12.5px;font-weight:450;color:oklch(50% 0.008 260);font-family:system-ui,sans-serif">compare anything</span>
+          </div>
+        </nav>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+          <p class="app-shell-heading" style="font-size:15px;font-weight:600;color:oklch(48% 0.01 260);letter-spacing:-0.02em;font-family:system-ui,sans-serif">Paste or type to begin</p>
+          <p class="app-shell-hint" style="font-size:13px;color:oklch(50% 0.008 260);text-align:center;line-height:1.6;font-family:system-ui,sans-serif">Original on the left, modified on the right.</p>
+        </div>
+      </div>
+    </div>
     <noscript>
       <div style="padding: 2rem; text-align: center; font-family: system-ui, sans-serif;">
         <h1>Diff Checker</h1>

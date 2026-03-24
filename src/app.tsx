@@ -36,7 +36,7 @@ function useIsMobile() {
 
 function EditorLoading() {
   return (
-    <div className="flex items-center justify-center h-full" style={{ background: 'var(--bg)' }}>
+    <div className="flex items-center justify-center h-full" style={{ background: 'var(--bg)', contain: 'layout style' }}>
       <span className="text-[13px]" style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
         Loading editor...
       </span>
@@ -58,6 +58,7 @@ export function App() {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [hasContent, setHasContent] = useState(false)
+  const [editorReady, setEditorReady] = useState(false)
 
   // Abstracted editor refs — work for both DiffEditor and two separate editors
   const origEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
@@ -92,6 +93,7 @@ export function App() {
     lineNumbersMinChars: 3,
     accessibilitySupport: 'on',
     renderSideBySide: !inline,
+    splitViewDefaultRatio: 0.5,
     wordWrap: wordWrap ? 'on' : 'off',
     fontSize: settings.fontSize,
     lineHeight: settings.lineHeight,
@@ -275,11 +277,25 @@ export function App() {
   }, [])
 
   const wireEditor = useCallback((ed: editor.IStandaloneCodeEditor, which: 'original' | 'modified') => {
-    // Label for screen readers
+    const label = `${which === 'original' ? 'Original' : 'Modified'} text editor`
+
+    // Label for screen readers — apply immediately and observe for dynamic changes
+    const applyLabels = (root: HTMLElement) => {
+      const targets = root.querySelectorAll('textarea, .native-edit-context, [role="textbox"]')
+      targets.forEach((t) => {
+        if (t.getAttribute('aria-label') !== label) {
+          t.setAttribute('aria-label', label)
+        }
+      })
+    }
+
     const el = ed.getDomNode()
     if (el) {
-      const targets = el.querySelectorAll('textarea, .native-edit-context, [role="textbox"]')
-      targets.forEach((t) => t.setAttribute('aria-label', `${which === 'original' ? 'Original' : 'Modified'} text editor`))
+      applyLabels(el)
+      // Monaco may recreate input elements — watch for DOM changes
+      const observer = new MutationObserver(() => applyLabels(el))
+      observer.observe(el, { childList: true, subtree: true })
+      ed.onDidDispose(() => observer.disconnect())
     }
 
     ed.onDidChangeModelContent(() => {
@@ -322,6 +338,11 @@ export function App() {
 
     remeasureFonts(monaco)
     orig.focus()
+
+    // Reveal editor after Monaco finishes layout to prevent CLS
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setEditorReady(true))
+    })
   }, [wireEditor, refresh, remeasureFonts])
 
   // --- Mobile editor mounts ---
@@ -332,6 +353,10 @@ export function App() {
     wireEditor(ed, 'original')
     remeasureFonts(monaco)
     ed.focus()
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setEditorReady(true))
+    })
   }, [wireEditor, remeasureFonts])
 
   const onModifiedMount = useCallback((ed: editor.IStandaloneCodeEditor, _monaco: Monaco) => {
@@ -438,9 +463,10 @@ export function App() {
 
       {!isMobile && <ColumnLabels inline={inline} />}
 
-      <main id="diff-editor" className="flex-1 min-h-0 relative overflow-hidden" style={{ contain: 'strict' }} aria-label="Diff editor">
+      <main id="diff-editor" className="flex-1 min-h-0 relative overflow-hidden" style={{ contain: 'strict', minHeight: '200px' }} aria-label="Diff editor">
         {!hasContent && <EmptyState />}
 
+        <div className="editor-wrapper" style={{ height: '100%', opacity: editorReady ? 1 : 0, transition: 'opacity 0.1s' }}>
         {isMobile ? (
           <MobileEditor
             language={effectiveLang}
@@ -464,6 +490,7 @@ export function App() {
             />
           </Suspense>
         )}
+        </div>
       </main>
 
       <StatusBar stats={stats} />
