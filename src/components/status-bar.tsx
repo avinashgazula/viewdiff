@@ -10,7 +10,7 @@ export const StatusBar = memo(function StatusBar({ stats }: Props) {
   const fk = formatKeybinding
 
   return (
-    <footer className="status-bar" role="status" aria-live="polite" aria-atomic="true">
+    <div className="status-bar" role="status" aria-live="polite" aria-atomic="true">
       <div className="flex items-center gap-3">
         {stats.changes > 0 ? (
           <>
@@ -26,6 +26,6 @@ export const StatusBar = memo(function StatusBar({ stats }: Props) {
         <kbd>{fk('Ctrl')}+K</kbd>
         <span className="text-[11px]">commands</span>
       </div>
-    </footer>
+    </div>
   )
 })

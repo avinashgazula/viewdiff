@@ -34,7 +34,7 @@ export const Toolbar = memo(function Toolbar({
     <nav
       aria-label="Diff tools"
       className="flex items-center justify-between px-3 h-[46px] shrink-0"
-      style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
+      style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', paddingLeft: '10px', paddingRight: '10px' }}
     >
       <div className="flex items-center gap-3">
         <h1 className="text-[14px] tracking-[-0.03em] m-0" style={{ fontWeight: 700 }}>diff</h1>

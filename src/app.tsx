@@ -228,11 +228,15 @@ export function App() {
     const orig = de.getOriginalEditor()
     const mod = de.getModifiedEditor()
 
-    // Label the editor textareas for screen readers
-    const origEl = orig.getDomNode()?.querySelector('textarea')
-    const modEl = mod.getDomNode()?.querySelector('textarea')
-    if (origEl) origEl.setAttribute('aria-label', 'Original text editor')
-    if (modEl) modEl.setAttribute('aria-label', 'Modified text editor')
+    // Label editable elements for screen readers.
+    // Monaco uses either <textarea> or .native-edit-context depending on version.
+    const labelEditor = (el: HTMLElement | null, label: string) => {
+      if (!el) return
+      const targets = el.querySelectorAll('textarea, .native-edit-context, [role="textbox"]')
+      targets.forEach((t) => t.setAttribute('aria-label', label))
+    }
+    labelEditor(orig.getDomNode(), 'Original text editor')
+    labelEditor(mod.getDomNode(), 'Modified text editor')
 
     // Enable intellisense on both editor panes
     const suggestOptions = {
@@ -380,7 +384,7 @@ export function App() {
 
       <ColumnLabels inline={inline} />
 
-      <main id="diff-editor" className="flex-1 min-h-0 relative" aria-label="Diff editor">
+      <main id="diff-editor" className="flex-1 min-h-0 relative overflow-hidden" style={{ contain: 'strict' }} aria-label="Diff editor">
         {!hasContent && <EmptyState />}
 
         <Suspense fallback={<EditorLoading />}>
