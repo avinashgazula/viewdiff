@@ -61,11 +61,11 @@ export const Toolbar = memo(function Toolbar({
         <button
           onClick={onFormat}
           disabled={formatting || !canFormat(effectiveLang)}
-          className="btn outlined hide-mobile-text"
+          className="btn outlined"
           aria-label={formatting ? 'Formatting in progress' : 'Format code'}
           title={`Format (${fk('Ctrl')}+${fk('Shift')}+F)`}
         >
-          {formatting ? '...' : 'Fmt'}
+          {formatting ? 'Formatting...' : 'Format'}
         </button>
 
         <div className="divider hide-mobile" aria-hidden="true" />

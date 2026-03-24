@@ -4,6 +4,7 @@ import type { editor } from 'monaco-editor'
 
 import { ColumnLabels } from './components/column-labels'
 import { EmptyState } from './components/empty-state'
+import { MobileEditor } from './components/mobile-editor'
 import { SettingsPanel } from './components/settings-panel'
 import { StatusBar } from './components/status-bar'
 import { Toolbar } from './components/toolbar'
@@ -20,6 +21,19 @@ const LazyDiffEditor = lazy(() =>
 
 const EMPTY_STATS: DiffStats = { additions: 0, deletions: 0, changes: 0 }
 
+function useIsMobile() {
+  const [mobile, setMobile] = useState(
+    typeof window !== 'undefined' && window.innerWidth <= 768
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    const handler = (e: MediaQueryListEvent) => setMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  return mobile
+}
+
 function EditorLoading() {
   return (
     <div className="flex items-center justify-center h-full" style={{ background: 'var(--bg)' }}>
@@ -33,10 +47,10 @@ function EditorLoading() {
 export function App() {
   const { dark, mode: themeMode, toggle: toggleTheme } = useTheme()
   const { settings, update: updateSetting, reset: resetSettings } = useSettings()
+  const isMobile = useIsMobile()
 
   const [language, setLanguage] = useState('auto')
   const [detectedLang, setDetectedLang] = useState('plaintext')
-  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
   const [inline, setInline] = useState(isMobile)
   const [wordWrap, setWordWrap] = useState(isMobile)
   const [stats, setStats] = useState(EMPTY_STATS)
@@ -45,15 +59,14 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [hasContent, setHasContent] = useState(false)
 
-  const editorRef = useRef<editor.IStandaloneDiffEditor | null>(null)
+  // Abstracted editor refs — work for both DiffEditor and two separate editors
+  const origEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+  const modEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
   const monacoRef = useRef<Monaco | null>(null)
 
-  // Stores original-cased text when ignore case is active
   const caseCacheRef = useRef<{ original: string; modified: string } | null>(null)
   const ignoreCaseActiveRef = useRef(false)
 
-  // Refs for values accessed inside Monaco event handlers,
-  // where stale closures would otherwise read outdated state.
   const langRef = useRef(language)
   const detectedRef = useRef(detectedLang)
   const settingsRef = useRef(settings)
@@ -63,7 +76,9 @@ export function App() {
 
   const effectiveLang = language === 'auto' ? detectedLang : language
 
-  const editorOptions = useMemo((): editor.IDiffEditorConstructionOptions => ({
+  // --- Editor options ---
+
+  const diffEditorOptions = useMemo((): editor.IDiffEditorConstructionOptions => ({
     originalEditable: true,
     fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace",
     fontLigatures: false,
@@ -89,10 +104,39 @@ export function App() {
     ignoreTrimWhitespace: settings.ignoreWhitespace,
   }), [inline, wordWrap, settings])
 
-  // Options that only exist on individual editor panes, not on IDiffEditorConstructionOptions
+  const singleEditorOptions = useMemo((): editor.IStandaloneEditorConstructionOptions => ({
+    fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace",
+    fontLigatures: false,
+    scrollBeyondLastLine: false,
+    padding: { top: 10, bottom: 10 },
+    automaticLayout: true,
+    scrollbar: { verticalScrollbarSize: 6, horizontalScrollbarSize: 6, useShadows: false },
+    overviewRulerBorder: false,
+    glyphMargin: false,
+    lineNumbersMinChars: 3,
+    accessibilitySupport: 'on',
+    wordWrap: 'on',
+    fontSize: settings.fontSize,
+    lineHeight: settings.lineHeight,
+    renderWhitespace: settings.renderWhitespace,
+    lineNumbers: settings.lineNumbers,
+    minimap: { enabled: false },
+    folding: settings.folding,
+    smoothScrolling: settings.smoothScrolling,
+    renderLineHighlight: settings.renderLineHighlight,
+    tabSize: settings.tabSize,
+    cursorStyle: settings.cursorStyle,
+    cursorBlinking: settings.cursorBlinking,
+    bracketPairColorization: { enabled: settings.bracketColors },
+    guides: { indentation: settings.indentGuides },
+    matchBrackets: settings.matchBrackets,
+  }), [settings])
+
+  // Push pane-only options to already-mounted editors
   useEffect(() => {
-    const de = editorRef.current
-    if (!de) return
+    const orig = origEditorRef.current
+    const mod = modEditorRef.current
+    if (!orig || !mod) return
 
     const paneOptions = {
       tabSize: settings.tabSize,
@@ -105,17 +149,15 @@ export function App() {
       suggestOnTriggerCharacters: settings.autocomplete,
       wordBasedSuggestions: settings.autocomplete ? 'currentDocument' as const : 'off' as const,
     }
-    de.getOriginalEditor().updateOptions(paneOptions)
-    de.getModifiedEditor().updateOptions(paneOptions)
+    orig.updateOptions(paneOptions)
+    mod.updateOptions(paneOptions)
   }, [settings])
 
-  // When ignore case is toggled, lowercase editor content (or restore originals)
+  // Ignore case toggle
   useEffect(() => {
-    const de = editorRef.current
-    if (!de) return
-
-    const orig = de.getOriginalEditor()
-    const mod = de.getModifiedEditor()
+    const orig = origEditorRef.current
+    const mod = modEditorRef.current
+    if (!orig || !mod) return
 
     if (settings.ignoreCase && !ignoreCaseActiveRef.current) {
       caseCacheRef.current = { original: orig.getValue(), modified: mod.getValue() }
@@ -135,8 +177,9 @@ export function App() {
   // --- Editor actions ---
 
   const format = useCallback(async () => {
-    const de = editorRef.current
-    if (!de) return
+    const orig = origEditorRef.current
+    const mod = modEditorRef.current
+    if (!orig || !mod) return
 
     const lang = langRef.current === 'auto' ? detectedRef.current : langRef.current
     if (!canFormat(lang)) return
@@ -144,8 +187,6 @@ export function App() {
     setFormatting(true)
     try {
       const { printWidth, tabSize } = settingsRef.current
-      const orig = de.getOriginalEditor()
-      const mod = de.getModifiedEditor()
       const [fo, fm] = await Promise.all([
         formatCode(orig.getValue(), lang, { printWidth, tabSize }),
         formatCode(mod.getValue(), lang, { printWidth, tabSize }),
@@ -158,10 +199,9 @@ export function App() {
   }, [])
 
   const swap = useCallback(() => {
-    const de = editorRef.current
-    if (!de) return
-    const orig = de.getOriginalEditor()
-    const mod = de.getModifiedEditor()
+    const orig = origEditorRef.current
+    const mod = modEditorRef.current
+    if (!orig || !mod) return
     const a = orig.getValue()
     const b = mod.getValue()
     orig.setValue(b)
@@ -169,17 +209,15 @@ export function App() {
   }, [])
 
   const clear = useCallback(() => {
-    const de = editorRef.current
-    if (!de) return
-    de.getOriginalEditor().setValue('')
-    de.getModifiedEditor().setValue('')
+    origEditorRef.current?.setValue('')
+    modEditorRef.current?.setValue('')
     setStats(EMPTY_STATS)
     setDetectedLang('plaintext')
     setHasContent(false)
   }, [])
 
-  const focusOriginal = useCallback(() => editorRef.current?.getOriginalEditor().focus(), [])
-  const focusModified = useCallback(() => editorRef.current?.getModifiedEditor().focus(), [])
+  const focusOriginal = useCallback(() => origEditorRef.current?.focus(), [])
+  const focusModified = useCallback(() => modEditorRef.current?.focus(), [])
   const toggleView = useCallback(() => setInline((v) => !v), [])
   const toggleWrap = useCallback(() => setWordWrap((v) => !v), [])
   const toggleSettings = useCallback(() => setSettingsOpen((v) => !v), [])
@@ -188,12 +226,11 @@ export function App() {
     setLanguage(id)
     if (id === 'auto') return
 
-    const de = editorRef.current
     const m = monacoRef.current
-    if (!de || !m) return
+    if (!m) return
 
-    const origModel = de.getOriginalEditor().getModel()
-    const modModel = de.getModifiedEditor().getModel()
+    const origModel = origEditorRef.current?.getModel()
+    const modModel = modEditorRef.current?.getModel()
     if (origModel) m.editor.setModelLanguage(origModel, id)
     if (modModel) m.editor.setModelLanguage(modModel, id)
   }, [])
@@ -208,38 +245,67 @@ export function App() {
 
     setDetectedLang(lang)
 
-    const de = editorRef.current
     const m = monacoRef.current
-    if (!de || !m) return
+    if (!m) return
 
-    const origModel = de.getOriginalEditor().getModel()
-    const modModel = de.getModifiedEditor().getModel()
+    const origModel = origEditorRef.current?.getModel()
+    const modModel = modEditorRef.current?.getModel()
     if (origModel) m.editor.setModelLanguage(origModel, lang)
     if (modModel) m.editor.setModelLanguage(modModel, lang)
   }, [])
 
-  // --- Monaco lifecycle ---
+  // --- Shared setup for both editor modes ---
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  const refresh = useCallback(() => {
+    clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      const orig = origEditorRef.current
+      const mod = modEditorRef.current
+      if (!orig || !mod) return
+      const ov = orig.getValue()
+      const mv = mod.getValue()
+      setStats(computeStats(ov, mv, {
+        ignoreCase: settingsRef.current.ignoreCase,
+        ignoreWhitespace: settingsRef.current.ignoreWhitespace,
+      }))
+      setHasContent(ov.trim().length > 0 || mv.trim().length > 0)
+    }, 200)
+  }, [])
+
+  const wireEditor = useCallback((ed: editor.IStandaloneCodeEditor, which: 'original' | 'modified') => {
+    // Label for screen readers
+    const el = ed.getDomNode()
+    if (el) {
+      const targets = el.querySelectorAll('textarea, .native-edit-context, [role="textbox"]')
+      targets.forEach((t) => t.setAttribute('aria-label', `${which === 'original' ? 'Original' : 'Modified'} text editor`))
+    }
+
+    ed.onDidChangeModelContent(() => {
+      tryDetect(ed.getValue())
+      if (ignoreCaseActiveRef.current && caseCacheRef.current) {
+        caseCacheRef.current[which] = ed.getValue()
+      }
+      refresh()
+    })
+  }, [tryDetect, refresh])
+
+  const remeasureFonts = useCallback((monaco: Monaco) => {
+    document.fonts.ready.then(() => monaco.editor.remeasureFonts())
+  }, [])
+
+  // --- DiffEditor mount (desktop) ---
 
   const onBeforeMount = useCallback((monaco: Monaco) => registerThemes(monaco), [])
 
-  const onMount = useCallback((de: editor.IStandaloneDiffEditor, monaco: Monaco) => {
-    editorRef.current = de
+  const onDiffMount = useCallback((de: editor.IStandaloneDiffEditor, monaco: Monaco) => {
     monacoRef.current = monaco
-
     const orig = de.getOriginalEditor()
     const mod = de.getModifiedEditor()
+    origEditorRef.current = orig
+    modEditorRef.current = mod
 
-    // Label editable elements for screen readers.
-    // Monaco uses either <textarea> or .native-edit-context depending on version.
-    const labelEditor = (el: HTMLElement | null, label: string) => {
-      if (!el) return
-      const targets = el.querySelectorAll('textarea, .native-edit-context, [role="textbox"]')
-      targets.forEach((t) => t.setAttribute('aria-label', label))
-    }
-    labelEditor(orig.getDomNode(), 'Original text editor')
-    labelEditor(mod.getDomNode(), 'Modified text editor')
-
-    // Enable intellisense on both editor panes
     const suggestOptions = {
       quickSuggestions: true,
       suggestOnTriggerCharacters: true,
@@ -250,54 +316,38 @@ export function App() {
     orig.updateOptions(suggestOptions)
     mod.updateOptions(suggestOptions)
 
-    let debounce: ReturnType<typeof setTimeout>
-    const refresh = () => {
-      clearTimeout(debounce)
-      debounce = setTimeout(() => {
-        if (!editorRef.current) return
-        const ov = editorRef.current.getOriginalEditor().getValue()
-        const mv = editorRef.current.getModifiedEditor().getValue()
-        setStats(computeStats(ov, mv, {
-          ignoreCase: settingsRef.current.ignoreCase,
-          ignoreWhitespace: settingsRef.current.ignoreWhitespace,
-        }))
-        setHasContent(ov.trim().length > 0 || mv.trim().length > 0)
-      }, 200)
-    }
-
-    orig.onDidChangeModelContent(() => {
-      tryDetect(orig.getValue())
-      // Edits while ignore case is on invalidate the stored originals
-      if (ignoreCaseActiveRef.current && caseCacheRef.current) {
-        caseCacheRef.current.original = orig.getValue()
-      }
-      refresh()
-    })
-    mod.onDidChangeModelContent(() => {
-      tryDetect(mod.getValue())
-      if (ignoreCaseActiveRef.current && caseCacheRef.current) {
-        caseCacheRef.current.modified = mod.getValue()
-      }
-      refresh()
-    })
+    wireEditor(orig, 'original')
+    wireEditor(mod, 'modified')
     de.onDidUpdateDiff(refresh)
 
-    // Monaco measures character widths on init. If the web font loads after
-    // that, cursor positions drift. Force a remeasure once fonts are ready.
-    document.fonts.ready.then(() => {
-      monaco.editor.remeasureFonts()
-    })
-
+    remeasureFonts(monaco)
     orig.focus()
-  }, [tryDetect])
+  }, [wireEditor, refresh, remeasureFonts])
+
+  // --- Mobile editor mounts ---
+
+  const onOriginalMount = useCallback((ed: editor.IStandaloneCodeEditor, monaco: Monaco) => {
+    monacoRef.current = monaco
+    origEditorRef.current = ed
+    wireEditor(ed, 'original')
+    remeasureFonts(monaco)
+    ed.focus()
+  }, [wireEditor, remeasureFonts])
+
+  const onModifiedMount = useCallback((ed: editor.IStandaloneCodeEditor, _monaco: Monaco) => {
+    modEditorRef.current = ed
+    wireEditor(ed, 'modified')
+  }, [wireEditor])
 
   // --- Command palette ---
 
   const commands: Command[] = useMemo(() => [
     { id: 'format', label: 'Format Document', shortcut: 'Ctrl+Shift+F', action: format },
     { id: 'theme', label: 'Cycle Theme (System → Light → Dark)', shortcut: 'Ctrl+J', action: toggleTheme },
-    { id: 'view', label: 'Toggle Inline / Side-by-Side', shortcut: 'Ctrl+\\', action: toggleView },
-    { id: 'wrap', label: 'Toggle Word Wrap', shortcut: 'Alt+Z', action: toggleWrap },
+    ...(!isMobile ? [
+      { id: 'view', label: 'Toggle Inline / Side-by-Side', shortcut: 'Ctrl+\\', action: toggleView },
+      { id: 'wrap', label: 'Toggle Word Wrap', shortcut: 'Alt+Z', action: toggleWrap },
+    ] : []),
     { id: 'swap', label: 'Swap Original and Modified', shortcut: 'Ctrl+Shift+S', action: swap },
     { id: 'clear', label: 'Clear Both Editors', shortcut: 'Ctrl+Shift+X', action: clear },
     { id: 'settings', label: 'Open Settings', shortcut: 'Ctrl+,', action: toggleSettings },
@@ -308,7 +358,7 @@ export function App() {
       label: `Language: ${l.label}`,
       action: () => changeLang(l.id),
     })),
-  ], [format, toggleTheme, toggleView, toggleWrap, swap, clear, toggleSettings, focusOriginal, focusModified, changeLang])
+  ], [format, toggleTheme, toggleView, toggleWrap, swap, clear, toggleSettings, focusOriginal, focusModified, changeLang, isMobile])
 
   // --- Keyboard shortcuts ---
 
@@ -348,6 +398,8 @@ export function App() {
 
   // --- Render ---
 
+  const editorTheme = dark ? 'diff-dark' : 'diff-light'
+
   return (
     <div className="h-screen flex flex-col" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
       <a href="#diff-editor" className="skip-link">Skip to editor</a>
@@ -384,23 +436,34 @@ export function App() {
         )}
       </div>
 
-      <ColumnLabels inline={inline} />
+      {!isMobile && <ColumnLabels inline={inline} />}
 
       <main id="diff-editor" className="flex-1 min-h-0 relative overflow-hidden" style={{ contain: 'strict' }} aria-label="Diff editor">
         {!hasContent && <EmptyState />}
 
-        <Suspense fallback={<EditorLoading />}>
-          <LazyDiffEditor
-            original=""
-            modified=""
+        {isMobile ? (
+          <MobileEditor
             language={effectiveLang}
-            theme={dark ? 'diff-dark' : 'diff-light'}
+            theme={editorTheme}
+            options={singleEditorOptions}
+            onOriginalMount={onOriginalMount}
+            onModifiedMount={onModifiedMount}
             beforeMount={onBeforeMount}
-            onMount={onMount}
-            loading={<EditorLoading />}
-            options={editorOptions}
           />
-        </Suspense>
+        ) : (
+          <Suspense fallback={<EditorLoading />}>
+            <LazyDiffEditor
+              original=""
+              modified=""
+              language={effectiveLang}
+              theme={editorTheme}
+              beforeMount={onBeforeMount}
+              onMount={onDiffMount}
+              loading={<EditorLoading />}
+              options={diffEditorOptions}
+            />
+          </Suspense>
+        )}
       </main>
 
       <StatusBar stats={stats} />

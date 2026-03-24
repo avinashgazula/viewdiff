@@ -567,6 +567,18 @@ kbd {
 
 .monaco-diff-editor .diffOverview { display: none !important; }
 
+/* Make the gutter between diff panes draggable by widening the sash hit area
+   to cover the full gutter width (~40px) without changing visual appearance */
+.monaco-diff-editor .monaco-sash.vertical {
+  touch-action: none;
+  width: 40px !important;
+  margin-left: -20px !important;
+  background: transparent !important;
+}
+.monaco-diff-editor .monaco-sash.vertical:hover {
+  cursor: col-resize;
+}
+
 /* ── Animations ────────────────────────────────────────── */
 
 @keyframes fadeIn {
@@ -576,6 +588,44 @@ kbd {
 @keyframes paletteIn {
   from { opacity: 0; transform: translateY(-6px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Mobile stacked editor ─────────────────────────────── */
+
+.mobile-editor-stack {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.mobile-editor-pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-editor-label {
+  padding: 4px 12px;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.mobile-editor-content {
+  flex: 1;
+  min-height: 0;
+}
+
+.mobile-editor-divider {
+  height: 2px;
+  background: var(--border);
+  flex-shrink: 0;
 }
 
 /* ── Mobile / responsive ───────────────────────────────── */
@@ -710,12 +760,6 @@ kbd {
   .lang-select {
     flex: 1;
     max-width: none;
-  }
-
-  .hide-mobile-text {
-    font-size: 0;
-    width: 36px;
-    padding: 0;
   }
 }
 
