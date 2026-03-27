@@ -1,11 +1,12 @@
 import './monaco-setup'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { App } from './app'
+import { RouterProvider } from '@tanstack/react-router'
+import { router } from './routes'
 import './app.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <RouterProvider router={router} />
   </StrictMode>,
 )

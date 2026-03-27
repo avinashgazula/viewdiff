@@ -1,8 +1,9 @@
 import { memo } from 'react'
+import { Link } from '@tanstack/react-router'
 import { formatKeybinding, languages } from '../config'
 import { canFormat } from '../diff'
 import type { ThemeMode } from '../hooks/use-theme'
-import { MonitorIcon, MoonIcon, SearchIcon, SettingsIcon, SunIcon, SwapIcon, WrapIcon } from './icons'
+import { MonitorIcon, MoonIcon, SearchIcon, SettingsIcon, ShareIcon, SunIcon, SwapIcon, WrapIcon } from './icons'
 
 interface Props {
   language: string
@@ -13,12 +14,15 @@ interface Props {
   formatting: boolean
   dark: boolean
   themeMode: ThemeMode
+  shareCopied: boolean
+  hasContent: boolean
   onChangeLang: (id: string) => void
   onFormat: () => void
   onSwap: () => void
   onToggleView: () => void
   onToggleWrap: () => void
   onClear: () => void
+  onShare: () => void
   onOpenPalette: () => void
   onToggleSettings: () => void
   onToggleTheme: () => void
@@ -27,7 +31,7 @@ interface Props {
 
 export const Toolbar = memo(function Toolbar({
   language, detectedLang, effectiveLang, inline, wordWrap, formatting, dark,
-  onChangeLang, onFormat, onSwap, onToggleView, onToggleWrap, onClear, onOpenPalette, onToggleSettings, onToggleTheme, settingsOpen, themeMode,
+  onChangeLang, onFormat, onSwap, onToggleView, onToggleWrap, onClear, onShare, onOpenPalette, onToggleSettings, onToggleTheme, settingsOpen, themeMode, shareCopied, hasContent,
 }: Props) {
   const fk = formatKeybinding
   const langLabel = languages.find((l) => l.id === detectedLang)?.label ?? detectedLang
@@ -39,7 +43,9 @@ export const Toolbar = memo(function Toolbar({
       style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
     >
       <div className="toolbar-brand">
-        <h1 className="toolbar-title">diff</h1>
+        <Link to="/" className="toolbar-title-link">
+          <h1 className="toolbar-title">diff</h1>
+        </Link>
         <span className="toolbar-subtitle">compare anything</span>
       </div>
 
@@ -92,6 +98,15 @@ export const Toolbar = memo(function Toolbar({
         </button>
         <button onClick={onClear} className="btn hide-mobile" aria-label="Clear both editors" title={`Clear (${fk('Ctrl')}+${fk('Shift')}+X)`}>
           Clear
+        </button>
+        <button
+          onClick={onShare}
+          disabled={!hasContent}
+          className="btn icon"
+          aria-label={shareCopied ? 'Link copied!' : 'Share diff via URL'}
+          title={shareCopied ? 'Link copied!' : 'Share diff via URL'}
+        >
+          {shareCopied ? <span className="text-[11px] font-medium" style={{ color: 'var(--green)' }}>Copied!</span> : <ShareIcon />}
         </button>
 
         <div className="divider hide-mobile" aria-hidden="true" />

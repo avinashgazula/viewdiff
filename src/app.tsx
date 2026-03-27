@@ -14,12 +14,20 @@ import { useSettings } from './hooks/use-settings'
 import { useTheme } from './hooks/use-theme'
 import { CommandPalette, type Command } from './palette'
 import { registerThemes } from './themes'
+import { encodeDiff, buildShareUrl } from './share'
 
 const LazyDiffEditor = lazy(() =>
   import('@monaco-editor/react').then((m) => ({ default: m.DiffEditor }))
 )
 
 const EMPTY_STATS: DiffStats = { additions: 0, deletions: 0, changes: 0 }
+
+interface AppProps {
+  defaultLanguage?: string
+  initialOriginal?: string
+  initialModified?: string
+  slug?: string
+}
 
 function useIsMobile() {
   const [mobile, setMobile] = useState(
@@ -44,17 +52,18 @@ function EditorLoading() {
   )
 }
 
-export function App() {
+export function App({ defaultLanguage = 'auto', initialOriginal, initialModified, slug = '/' }: AppProps) {
   const { dark, mode: themeMode, toggle: toggleTheme } = useTheme()
   const { settings, update: updateSetting, reset: resetSettings } = useSettings()
   const isMobile = useIsMobile()
 
-  const [language, setLanguage] = useState('auto')
-  const [detectedLang, setDetectedLang] = useState('plaintext')
+  const [language, setLanguage] = useState(defaultLanguage)
+  const [detectedLang, setDetectedLang] = useState(defaultLanguage === 'auto' ? 'plaintext' : defaultLanguage)
   const [inline, setInline] = useState(isMobile)
   const [wordWrap, setWordWrap] = useState(isMobile)
   const [stats, setStats] = useState(EMPTY_STATS)
   const [formatting, setFormatting] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [hasContent, setHasContent] = useState(false)
@@ -218,6 +227,22 @@ export function App() {
     setHasContent(false)
   }, [])
 
+  const share = useCallback(async () => {
+    const orig = origEditorRef.current
+    const mod = modEditorRef.current
+    if (!orig || !mod) return
+    const ov = orig.getValue()
+    const mv = mod.getValue()
+    if (!ov.trim() && !mv.trim()) return
+
+    const encoded = await encodeDiff(ov, mv)
+    const url = buildShareUrl(slug, encoded)
+
+    await navigator.clipboard.writeText(url)
+    setShareCopied(true)
+    setTimeout(() => setShareCopied(false), 2000)
+  }, [slug])
+
   const focusOriginal = useCallback(() => origEditorRef.current?.focus(), [])
   const focusModified = useCallback(() => modEditorRef.current?.focus(), [])
   const toggleView = useCallback(() => setInline((v) => !v), [])
@@ -336,6 +361,10 @@ export function App() {
     wireEditor(mod, 'modified')
     de.onDidUpdateDiff(refresh)
 
+    // Load initial content (from shared URL)
+    if (initialOriginal != null) orig.setValue(initialOriginal)
+    if (initialModified != null) mod.setValue(initialModified)
+
     remeasureFonts(monaco)
     orig.focus()
 
@@ -343,7 +372,7 @@ export function App() {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => setEditorReady(true))
     })
-  }, [wireEditor, refresh, remeasureFonts])
+  }, [wireEditor, refresh, remeasureFonts, initialOriginal, initialModified])
 
   // --- Mobile editor mounts ---
 
@@ -368,6 +397,7 @@ export function App() {
 
   const commands: Command[] = useMemo(() => [
     { id: 'format', label: 'Format Document', shortcut: 'Ctrl+Shift+F', action: format },
+    { id: 'share', label: 'Share Diff via URL', action: share },
     { id: 'theme', label: 'Cycle Theme (System → Light → Dark)', shortcut: 'Ctrl+J', action: toggleTheme },
     ...(!isMobile ? [
       { id: 'view', label: 'Toggle Inline / Side-by-Side', shortcut: 'Ctrl+\\', action: toggleView },
@@ -383,7 +413,7 @@ export function App() {
       label: `Language: ${l.label}`,
       action: () => changeLang(l.id),
     })),
-  ], [format, toggleTheme, toggleView, toggleWrap, swap, clear, toggleSettings, focusOriginal, focusModified, changeLang, isMobile])
+  ], [format, share, toggleTheme, toggleView, toggleWrap, swap, clear, toggleSettings, focusOriginal, focusModified, changeLang, isMobile])
 
   // --- Keyboard shortcuts ---
 
@@ -440,9 +470,12 @@ export function App() {
           dark={dark}
           themeMode={themeMode}
           settingsOpen={settingsOpen}
+          shareCopied={shareCopied}
+          hasContent={hasContent}
           onChangeLang={changeLang}
           onFormat={format}
           onSwap={swap}
+          onShare={share}
           onToggleView={toggleView}
           onToggleWrap={toggleWrap}
           onClear={clear}
