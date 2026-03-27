@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && bun scripts/ssg.ts",
-    "build:vite": "vite build",
+    "build": "NODE_OPTIONS=--max-old-space-size=4096 vite build && bun scripts/ssg.ts",
+    "build:vite": "NODE_OPTIONS=--max-old-space-size=4096 vite build",
     "ssg": "bun scripts/ssg.ts",
     "preview": "bun run build && wrangler dev",
     "deploy": "bun run build && wrangler deploy"
