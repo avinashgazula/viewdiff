@@ -1,4 +1,54 @@
+# viewdiff.app — Free Online Diff Checker
+# https://viewdiff.app
+
+# Allow all search engines
 User-agent: *
 Allow: /
+Disallow: /assets/
+Disallow: /*.js$
+Disallow: /*.css$
 
+# Sitemap
 Sitemap: https://viewdiff.app/sitemap.xml
+
+# Google
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+# Bing
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# AI crawlers — allow for visibility in AI search (ChatGPT, Perplexity, etc.)
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+# Block bad bots that waste crawl budget
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: BLEXBot
+Disallow: /
