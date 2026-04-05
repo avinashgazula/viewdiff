@@ -6,6 +6,8 @@ interface Props {
   onUpdate: <K extends keyof Settings>(key: K, value: Settings[K]) => void
   onReset: () => void
   onClose: () => void
+  wordWrap: boolean
+  onToggleWrap: () => void
 }
 
 interface SelectOption<T> {
@@ -55,7 +57,7 @@ function Select<T extends string | number>({ value, options, onChange }: {
   )
 }
 
-export function SettingsPanel({ settings, onUpdate, onReset, onClose }: Props) {
+export function SettingsPanel({ settings, onUpdate, onReset, onClose, wordWrap, onToggleWrap }: Props) {
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -119,6 +121,10 @@ export function SettingsPanel({ settings, onUpdate, onReset, onClose }: Props) {
             <Select value={settings.tabSize} onChange={(v) => onUpdate('tabSize', v)} options={[
               { value: 2, label: '2' }, { value: 4, label: '4' }, { value: 8, label: '8' },
             ]} />
+          </SettingRow>
+
+          <SettingRow label="Word wrap">
+            <Toggle checked={wordWrap} onChange={() => onToggleWrap()} />
           </SettingRow>
 
           <SettingRow label="Cursor style">

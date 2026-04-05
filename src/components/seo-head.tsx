@@ -47,7 +47,10 @@ export function SeoHead({ page }: Props) {
     setMeta('name', 'twitter:title', page.title)
     setMeta('name', 'twitter:description', page.description)
 
-    // --- Structured Data: multiple schemas ---
+    // --- Structured Data ---
+    // SSG bakes JSON-LD into the static HTML at build time.
+    // On client-side navigation (SPA), update the existing scripts
+    // so the DOM stays in sync, but avoid creating duplicates.
     const schemas: Record<string, unknown>[] = []
 
     // 1. WebApplication schema
@@ -55,7 +58,7 @@ export function SeoHead({ page }: Props) {
       '@context': 'https://schema.org',
       '@type': 'WebApplication',
       name: 'viewdiff',
-      alternateName: ['Diff Checker', 'Online Diff Tool', 'Text Compare Tool', 'Code Diff Tool'],
+      alternateName: ['Diff Checker', 'Online Diff Tool', 'Text Compare Tool', 'Code Diff Tool', 'viewdiff.app'],
       url: BASE_URL,
       description: page.description,
       applicationCategory: 'DeveloperApplication',
@@ -107,7 +110,7 @@ export function SeoHead({ page }: Props) {
       })
     }
 
-    // 4. WebPage schema with speakable
+    // 4. WebPage schema
     schemas.push({
       '@context': 'https://schema.org',
       '@type': 'WebPage',
@@ -126,16 +129,15 @@ export function SeoHead({ page }: Props) {
       },
     })
 
-    // Write all schemas
-    const ldId = 'ld-json-page'
-    let ld = document.getElementById(ldId) as HTMLScriptElement | null
-    if (!ld) {
-      ld = document.createElement('script')
-      ld.id = ldId
-      ld.type = 'application/ld+json'
-      document.head.appendChild(ld)
+    // Remove all existing ld+json scripts (SSG-baked ones) to avoid duplicates,
+    // then write fresh ones for the current page.
+    document.querySelectorAll('script[type="application/ld+json"]').forEach((el) => el.remove())
+    for (const schema of schemas) {
+      const script = document.createElement('script')
+      script.type = 'application/ld+json'
+      document.head.appendChild(script)
+      script.textContent = JSON.stringify(schema)
     }
-    ld.textContent = JSON.stringify(schemas)
   }, [page])
 
   return null

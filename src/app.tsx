@@ -60,7 +60,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
   const [language, setLanguage] = useState(defaultLanguage)
   const [detectedLang, setDetectedLang] = useState(defaultLanguage === 'auto' ? 'plaintext' : defaultLanguage)
   const [inline, setInline] = useState(isMobile)
-  const [wordWrap, setWordWrap] = useState(isMobile)
+  const [wordWrap, setWordWrap] = useState(true)
   const [stats, setStats] = useState(EMPTY_STATS)
   const [formatting, setFormatting] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
@@ -490,6 +490,8 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
             onUpdate={updateSetting}
             onReset={resetSettings}
             onClose={() => setSettingsOpen(false)}
+            wordWrap={wordWrap}
+            onToggleWrap={toggleWrap}
           />
         )}
       </div>

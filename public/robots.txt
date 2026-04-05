@@ -4,9 +4,6 @@
 # Allow all search engines
 User-agent: *
 Allow: /
-Disallow: /assets/
-Disallow: /*.js$
-Disallow: /*.css$
 
 # Sitemap
 Sitemap: https://viewdiff.app/sitemap.xml
