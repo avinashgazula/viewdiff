@@ -16,7 +16,7 @@ export interface PageSeo {
 const BASE_URL = 'https://viewdiff.app'
 
 export function canonicalUrl(slug: string): string {
-  return slug === '/' ? BASE_URL : `${BASE_URL}${slug}`
+  return slug === '/' ? `${BASE_URL}/` : `${BASE_URL}${slug}/`
 }
 
 export const pages: PageSeo[] = [
