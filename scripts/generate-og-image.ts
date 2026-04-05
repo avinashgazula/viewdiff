@@ -1,0 +1,100 @@
+/**
+ * Generate an OG image (1200x630) for social sharing.
+ *
+ * Uses SVG → inline data approach since we don't need external image libraries.
+ * The SVG is written as a static file that can be served directly.
+ *
+ * For best compatibility, convert to PNG after generating:
+ *   npx sharp-cli -i public/og-image.svg -o public/og-image.png --width 1200 --height 630
+ *
+ * Or use any SVG → PNG converter (Figma, Inkscape, CloudConvert, etc.)
+ *
+ * Usage: npx tsx scripts/generate-og-image.ts
+ */
+
+import { writeFileSync } from 'node:fs'
+import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const root = resolve(__dirname, '..')
+
+const svg = `<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f0f1a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1a1a2e;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)" />
+
+  <!-- Subtle grid pattern -->
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.04" />
+  </pattern>
+  <rect width="1200" height="630" fill="url(#grid)" />
+
+  <!-- Accent line at top -->
+  <rect x="0" y="0" width="1200" height="4" fill="url(#accent)" />
+
+  <!-- Diff visualization: left panel (deletions) -->
+  <rect x="80" y="180" width="480" height="260" rx="12" fill="#1e1e2e" stroke="#2d2d44" stroke-width="1" />
+  <text x="100" y="210" fill="#ef4444" font-family="monospace" font-size="11" opacity="0.6">ORIGINAL</text>
+  <text x="100" y="245" fill="#94a3b8" font-family="monospace" font-size="15">  name: "viewdiff",</text>
+  <text x="100" y="270" fill="#fca5a5" font-family="monospace" font-size="15"><tspan fill="#ef4444">- </tspan>version: "1.0.0",</text>
+  <rect x="92" y="257" width="456" height="20" rx="3" fill="#ef4444" opacity="0.08" />
+  <text x="100" y="295" fill="#94a3b8" font-family="monospace" font-size="15">  type: "module",</text>
+  <text x="100" y="320" fill="#fca5a5" font-family="monospace" font-size="15"><tspan fill="#ef4444">- </tspan>private: true,</text>
+  <rect x="92" y="307" width="456" height="20" rx="3" fill="#ef4444" opacity="0.08" />
+  <text x="100" y="345" fill="#94a3b8" font-family="monospace" font-size="15">  scripts: {</text>
+  <text x="100" y="370" fill="#94a3b8" font-family="monospace" font-size="15">    dev: "vite",</text>
+  <text x="100" y="395" fill="#fca5a5" font-family="monospace" font-size="15"><tspan fill="#ef4444">- </tspan>  build: "vite build"</text>
+  <rect x="92" y="382" width="456" height="20" rx="3" fill="#ef4444" opacity="0.08" />
+  <text x="100" y="420" fill="#94a3b8" font-family="monospace" font-size="15">  }</text>
+
+  <!-- Diff visualization: right panel (additions) -->
+  <rect x="640" y="180" width="480" height="260" rx="12" fill="#1e1e2e" stroke="#2d2d44" stroke-width="1" />
+  <text x="660" y="210" fill="#22c55e" font-family="monospace" font-size="11" opacity="0.6">MODIFIED</text>
+  <text x="660" y="245" fill="#94a3b8" font-family="monospace" font-size="15">  name: "viewdiff",</text>
+  <text x="660" y="270" fill="#86efac" font-family="monospace" font-size="15"><tspan fill="#22c55e">+ </tspan>version: "2.0.0",</text>
+  <rect x="652" y="257" width="456" height="20" rx="3" fill="#22c55e" opacity="0.08" />
+  <text x="660" y="295" fill="#94a3b8" font-family="monospace" font-size="15">  type: "module",</text>
+  <text x="660" y="320" fill="#86efac" font-family="monospace" font-size="15"><tspan fill="#22c55e">+ </tspan>private: false,</text>
+  <rect x="652" y="307" width="456" height="20" rx="3" fill="#22c55e" opacity="0.08" />
+  <text x="660" y="345" fill="#94a3b8" font-family="monospace" font-size="15">  scripts: {</text>
+  <text x="660" y="370" fill="#94a3b8" font-family="monospace" font-size="15">    dev: "vite",</text>
+  <text x="660" y="395" fill="#86efac" font-family="monospace" font-size="15"><tspan fill="#22c55e">+ </tspan>  build: "tsc &amp;&amp; vite build"</text>
+  <rect x="652" y="382" width="456" height="20" rx="3" fill="#22c55e" opacity="0.08" />
+  <text x="660" y="420" fill="#94a3b8" font-family="monospace" font-size="15">  }</text>
+
+  <!-- Connector arrows between panels -->
+  <line x1="570" y1="265" x2="630" y2="265" stroke="#6366f1" stroke-width="1.5" opacity="0.4" />
+  <line x1="570" y1="315" x2="630" y2="315" stroke="#6366f1" stroke-width="1.5" opacity="0.4" />
+  <line x1="570" y1="390" x2="630" y2="390" stroke="#6366f1" stroke-width="1.5" opacity="0.4" />
+
+  <!-- Logo and title -->
+  <text x="80" y="100" fill="#ffffff" font-family="system-ui, -apple-system, sans-serif" font-size="52" font-weight="700" letter-spacing="-2">
+    <tspan fill="url(#accent)">view</tspan><tspan fill="#ffffff">diff</tspan>
+  </text>
+  <text x="80" y="138" fill="#94a3b8" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="400">
+    Compare text, code &amp; data — free, private, instant
+  </text>
+
+  <!-- Bottom tagline -->
+  <text x="80" y="570" fill="#64748b" font-family="system-ui, -apple-system, sans-serif" font-size="16">
+    30+ languages · Syntax highlighting · Auto-format · No sign-up · viewdiff.app
+  </text>
+</svg>`
+
+writeFileSync(resolve(root, 'public/og-image.svg'), svg, 'utf-8')
+console.log('✅ Generated public/og-image.svg (1200×630)')
+console.log('')
+console.log('To convert to PNG for best social media compatibility:')
+console.log('  npx sharp-cli -i public/og-image.svg -o public/og-image.png resize 1200 630')
+console.log('  — or use Figma / Inkscape / CloudConvert')

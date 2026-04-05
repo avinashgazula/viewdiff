@@ -218,6 +218,10 @@ for (const page of pages) {
     /<meta property="og:url" content="[^"]*"/,
     `<meta property="og:url" content="${escAttr(url)}"`,
   )
+  html = html.replace(
+    /<meta property="og:image:alt" content="[^"]*"/,
+    `<meta property="og:image:alt" content="${escAttr(page.h1)}"`,
+  )
 
   // 6. Replace Twitter tags
   html = html.replace(

@@ -42,10 +42,16 @@ export function SeoHead({ page }: Props) {
     setMeta('property', 'og:url', url)
     setMeta('property', 'og:type', 'website')
     setMeta('property', 'og:site_name', 'viewdiff')
+    setMeta('property', 'og:image', `${BASE_URL}/og-image.png`)
+    setMeta('property', 'og:image:width', '1200')
+    setMeta('property', 'og:image:height', '630')
+    setMeta('property', 'og:image:alt', page.h1)
 
     // Twitter
+    setMeta('name', 'twitter:card', 'summary_large_image')
     setMeta('name', 'twitter:title', page.title)
     setMeta('name', 'twitter:description', page.description)
+    setMeta('name', 'twitter:image', `${BASE_URL}/og-image.png`)
 
     // --- Structured Data ---
     // SSG bakes JSON-LD into the static HTML at build time.
