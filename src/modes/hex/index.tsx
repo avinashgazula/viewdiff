@@ -106,13 +106,21 @@ function HexRow({ offset, bytes, diffBytes, diffMask, side }: HexRowProps) {
   )
 }
 
-function VirtualHexDump({ diff, side, containerHeight }: {
+function VirtualHexDump({ diff, side, containerHeight, jumpToOffset }: {
   diff: HexDiff
   side: 'left' | 'right'
   containerHeight: number
+  jumpToOffset?: number
 }) {
   const [scrollTop, setScrollTop] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
   const bytes = side === 'left' ? diff.leftBytes : diff.rightBytes
+
+  useEffect(() => {
+    if (jumpToOffset === undefined || jumpToOffset === null) return
+    const row = Math.floor(jumpToOffset / BYTES_PER_ROW)
+    if (containerRef.current) containerRef.current.scrollTop = row * ROW_HEIGHT
+  }, [jumpToOffset])
   const totalRows = Math.ceil(Math.max(diff.totalLeft, diff.totalRight) / BYTES_PER_ROW)
 
   const buffer = 5
@@ -122,6 +130,7 @@ function VirtualHexDump({ diff, side, containerHeight }: {
 
   return (
     <div
+      ref={containerRef}
       style={{ flex: 1, overflowY: 'auto', overflowX: 'auto' }}
       onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
     >
@@ -169,6 +178,7 @@ export function HexMode() {
   const [diff, setDiff] = useState<HexDiff | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [jumpOffset, setJumpOffset] = useState<number | undefined>(undefined)
   const leftRef = useRef<HTMLDivElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
   const [paneHeight, setPaneHeight] = useState(400)
@@ -279,6 +289,24 @@ export function HexMode() {
         <div className="toolbar-controls">
           {loading && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading...</span>}
           {error && <span style={{ fontSize: 12, color: 'var(--red)' }}>{error}</span>}
+          {diff && (
+            <input
+              type="text"
+              placeholder="Jump to offset (hex)"
+              title="Type a hex offset (e.g. 0x1F4) and press Enter to scroll"
+              style={{
+                height: 26, padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: 11.5,
+                color: 'var(--text)', background: 'var(--surface-raised)',
+                border: '1px solid var(--border)', borderRadius: 6, outline: 'none', width: 150,
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return
+                const raw = e.currentTarget.value.trim().replace(/^0x/i, '')
+                const offset = parseInt(raw, 16)
+                if (!isNaN(offset)) setJumpOffset(offset)
+              }}
+            />
+          )}
           <div className="divider" aria-hidden="true" />
           <button onClick={toggleTheme} className="btn icon">
             {themeMode === 'system' ? <MonitorIcon /> : themeMode === 'dark' ? <SunIcon /> : <MoonIcon />}
@@ -300,14 +328,14 @@ export function HexMode() {
               <span>{leftFile?.name}</span>
               <span style={{ color: 'var(--text-dim)' }}>{leftBytes && detectMime(leftBytes)} · {leftFile && (leftFile.size / 1024).toFixed(1)} KB</span>
             </div>
-            <VirtualHexDump diff={diff} side="left" containerHeight={paneHeight} />
+            <VirtualHexDump diff={diff} side="left" containerHeight={paneHeight} jumpToOffset={jumpOffset} />
           </div>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <div style={{ padding: '4px 12px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', fontSize: 11.5, color: 'var(--text-secondary)', flexShrink: 0, display: 'flex', justifyContent: 'space-between' }}>
               <span>{rightFile?.name}</span>
               <span style={{ color: 'var(--text-dim)' }}>{rightBytes && detectMime(rightBytes)} · {rightFile && (rightFile.size / 1024).toFixed(1)} KB</span>
             </div>
-            <VirtualHexDump diff={diff} side="right" containerHeight={paneHeight} />
+            <VirtualHexDump diff={diff} side="right" containerHeight={paneHeight} jumpToOffset={jumpOffset} />
           </div>
         </div>
       )}

@@ -172,14 +172,30 @@ export function GitMode() {
 
       {parsed && parsed.files.length > 0 ? (
         <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-          {/* File list sidebar */}
-          <div style={{
-            width: 260,
-            flexShrink: 0,
-            borderRight: '1px solid var(--border)',
-            overflowY: 'auto',
-            background: 'var(--surface)',
-          }}>
+          {/* File list sidebar — keyboard navigable */}
+          <div
+            role="listbox"
+            aria-label="Changed files"
+            tabIndex={0}
+            style={{
+              width: 260, flexShrink: 0, borderRight: '1px solid var(--border)',
+              overflowY: 'auto', background: 'var(--surface)', outline: 'none',
+            }}
+            onKeyDown={(e) => {
+              if (!parsed) return
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                setSelectedFile((i) => Math.min(i + 1, parsed.files.length - 1))
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                setSelectedFile((i) => Math.max(i - 1, 0))
+              } else if (e.key === 'Home') {
+                e.preventDefault(); setSelectedFile(0)
+              } else if (e.key === 'End') {
+                e.preventDefault(); setSelectedFile(parsed.files.length - 1)
+              }
+            }}
+          >
             {parsed.commitMessage && (
               <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic' }}>
                 {parsed.commitMessage}

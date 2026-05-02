@@ -10,6 +10,7 @@ interface EOLInfo {
 interface Props {
   stats: DiffStats
   eolInfo?: EOLInfo
+  wordCount?: { orig: number; mod: number }
 }
 
 function DiffBar({ additions, deletions }: { additions: number; deletions: number }) {
@@ -44,7 +45,7 @@ function EOLBadge({ orig, mod }: EOLInfo) {
   )
 }
 
-export const StatusBar = memo(function StatusBar({ stats, eolInfo }: Props) {
+export const StatusBar = memo(function StatusBar({ stats, eolInfo, wordCount }: Props) {
   const fk = formatKeybinding
 
   return (
@@ -61,6 +62,14 @@ export const StatusBar = memo(function StatusBar({ stats, eolInfo }: Props) {
           <span style={{ color: 'var(--text-dim)' }}>No differences</span>
         )}
         {eolInfo && <EOLBadge orig={eolInfo.orig} mod={eolInfo.mod} />}
+        {wordCount && (wordCount.orig > 0 || wordCount.mod > 0) && (
+          <span
+            style={{ fontSize: 10.5, color: 'var(--text-dim)', fontVariantNumeric: 'tabular-nums' }}
+            title={`Word count — Original: ${wordCount.orig.toLocaleString()}  Modified: ${wordCount.mod.toLocaleString()}`}
+          >
+            {wordCount.orig.toLocaleString()} / {wordCount.mod.toLocaleString()} words
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-1.5" style={{ color: 'var(--text-dim)' }}>
         <kbd>{fk('Ctrl')}+K</kbd>

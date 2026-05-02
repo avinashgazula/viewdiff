@@ -114,25 +114,38 @@ export function SettingsPanel({ settings, onUpdate, onReset, onClose, wordWrap, 
           </SettingRow>
 
           <SettingRow label="Ignore pattern">
-            <input
-              type="text"
-              value={settings.lineFilter}
-              onChange={(e) => onUpdate('lineFilter', e.target.value)}
-              placeholder="Regex (e.g. ^#)"
-              title="Lines matching this regex are ignored in the diff"
-              style={{
-                height: 26,
-                padding: '0 8px',
-                fontFamily: 'var(--font-mono)',
-                fontSize: 11.5,
-                color: 'var(--text)',
-                background: 'var(--surface-raised)',
-                border: '1px solid var(--border)',
-                borderRadius: 6,
-                outline: 'none',
-                width: 140,
-              }}
-            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <input
+                type="text"
+                value={settings.lineFilter}
+                onChange={(e) => onUpdate('lineFilter', e.target.value)}
+                placeholder="Regex (e.g. ^#)"
+                title="Lines matching this regex are ignored in the diff"
+                style={{
+                  height: 26, padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: 11.5,
+                  color: 'var(--text)', background: 'var(--surface-raised)',
+                  border: '1px solid var(--border)', borderRadius: 6, outline: 'none', width: 140,
+                }}
+              />
+              <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                {([
+                  { label: '//', title: 'C/JS/TS/Go comments', pat: '^\\s*//' },
+                  { label: '#', title: 'Python/Shell/Ruby comments', pat: '^\\s*#' },
+                  { label: '--', title: 'SQL/Haskell comments', pat: '^\\s*--' },
+                  { label: ';', title: 'INI/Lua comments', pat: '^\\s*;' },
+                ] as const).map(({ label, title, pat }) => (
+                  <button
+                    key={pat}
+                    className={`btn outlined ${settings.lineFilter === pat ? 'active' : ''}`}
+                    style={{ fontSize: 10, height: 18, padding: '0 5px', fontFamily: 'var(--font-mono)' }}
+                    title={title}
+                    onClick={() => onUpdate('lineFilter', settings.lineFilter === pat ? '' : pat)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </SettingRow>
 
           <SettingRow label="Show moved blocks">

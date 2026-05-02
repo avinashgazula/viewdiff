@@ -87,6 +87,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
   const [hasContent, setHasContent] = useState(false)
   const [editorReady, setEditorReady] = useState(false)
   const [eolInfo, setEolInfo] = useState<{ orig: string | null; mod: string | null }>({ orig: null, mod: null })
+  const [wordCount, setWordCount] = useState<{ orig: number; mod: number }>({ orig: 0, mod: 0 })
   const [isDragging, setIsDragging] = useState(false)
 
   // Abstracted editor refs — work for both DiffEditor and two separate editors
@@ -398,6 +399,21 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
     if (patch) await navigator.clipboard.writeText(patch)
   }, [])
 
+  const printDiff = useCallback(() => {
+    const orig = origEditorRef.current
+    const mod = modEditorRef.current
+    if (!orig || !mod) return
+    const ov = orig.getValue(), mv = mod.getValue()
+    if (!ov.trim() && !mv.trim()) return
+    const html = generateHtmlDiff(ov, mv, 'original', 'modified')
+    const w = window.open('', '_blank')
+    if (!w) return
+    w.document.open()
+    w.document.write(html)
+    w.document.close()
+    setTimeout(() => w.print(), 250)
+  }, [])
+
   // Auto-save to recent diffs after content stabilizes (5 s debounce)
   const recentSaveRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const addRecentRef = useRef(addRecent)
@@ -515,6 +531,8 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
       }))
       setHasContent(ov.trim().length > 0 || mv.trim().length > 0)
       setEolInfo({ orig: detectEOL(ov), mod: detectEOL(mv) })
+      const wc = (s: string) => s.trim() ? s.trim().split(/\s+/).length : 0
+      setWordCount({ orig: wc(ov), mod: wc(mv) })
     }, 200)
   }, [])
 
@@ -644,6 +662,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
     { id: 'focus-orig', label: 'Focus Original Editor', shortcut: 'Ctrl+1', action: focusOriginal },
     { id: 'focus-mod', label: 'Focus Modified Editor', shortcut: 'Ctrl+2', action: focusModified },
     { id: 'copy-diff', label: 'Copy Diff as Patch Text', action: copyDiff },
+    { id: 'print', label: 'Print Diff', shortcut: 'Ctrl+P', action: printDiff },
     ...languages.map((l) => ({
       id: `lang-${l.id}`,
       label: `Language: ${l.label}`,
@@ -660,7 +679,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
         },
       })),
     ] : []),
-  ], [format, share, copyDiff, exportHtml, acceptHunkFromOriginal, acceptHunkFromModified, toggleTheme, toggleView, toggleWrap, swap, clear, toggleSettings, focusOriginal, focusModified, changeLang, isMobile, recents])
+  ], [format, share, copyDiff, printDiff, exportHtml, acceptHunkFromOriginal, acceptHunkFromModified, toggleTheme, toggleView, toggleWrap, swap, clear, toggleSettings, focusOriginal, focusModified, changeLang, isMobile, recents])
 
   // --- Keyboard shortcuts ---
 
@@ -678,6 +697,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
       { test: (e) => (e.ctrlKey || e.metaKey) && e.key === '2', action: focusModified },
       { test: (e) => (e.ctrlKey || e.metaKey) && !e.shiftKey && /^[eE]$/.test(e.key), action: exportPatch },
       { test: (e) => (e.ctrlKey || e.metaKey) && e.shiftKey && /^[eE]$/.test(e.key), action: exportHtml },
+      { test: (e) => (e.ctrlKey || e.metaKey) && /^[pP]$/.test(e.key), action: printDiff },
       { test: (e) => (e.ctrlKey || e.metaKey) && e.altKey && e.key === 'ArrowLeft', action: acceptHunkFromOriginal },
       { test: (e) => (e.ctrlKey || e.metaKey) && e.altKey && e.key === 'ArrowRight', action: acceptHunkFromModified },
       { test: (e) => e.key === 'F7' && !e.shiftKey, action: nextDiff },
@@ -707,7 +727,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [format, toggleTheme, toggleView, toggleWrap, toggleSettings, swap, clear, focusOriginal, focusModified, exportPatch, exportHtml, acceptHunkFromOriginal, acceptHunkFromModified, nextDiff, prevDiff, navigateMode])
+  }, [format, toggleTheme, toggleView, toggleWrap, toggleSettings, swap, clear, focusOriginal, focusModified, exportPatch, exportHtml, printDiff, acceptHunkFromOriginal, acceptHunkFromModified, nextDiff, prevDiff, navigateMode])
 
   // --- Render ---
 
@@ -816,7 +836,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
         </div>
       </main>
 
-      <StatusBar stats={stats} eolInfo={eolInfo} />
+      <StatusBar stats={stats} eolInfo={eolInfo} wordCount={wordCount} />
 
       {paletteOpen && <CommandPalette commands={commands} onClose={() => setPaletteOpen(false)} />}
     </div>

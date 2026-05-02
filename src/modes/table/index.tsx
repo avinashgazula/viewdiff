@@ -4,6 +4,7 @@ import { ModeTabs } from '../../components/mode-tabs'
 import { useTheme } from '../../hooks/use-theme'
 import { MoonIcon, MonitorIcon, SunIcon } from '../../components/icons'
 import { downloadText } from '../../export'
+import { encodeText, decodeText } from '../../share'
 
 type Row = string[]
 type ColMap = number[] // colMap[rightColIdx] = leftColIdx or -1
@@ -227,6 +228,19 @@ export function TableMode() {
   const [delimiter, setDelimiter] = useState<string>('auto')
   const [hasHeader, setHasHeader] = useState(true)
   const [showOnlyDiff, setShowOnlyDiff] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
+
+  // Load from URL on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const l = params.get('l'), r = params.get('r'), d = params.get('d'), h = params.get('h')
+    ;(async () => {
+      if (l) { const t = await decodeText(l); if (t) setLeftText(t) }
+      if (r) { const t = await decodeText(r); if (t) setRightText(t) }
+      if (d) setDelimiter(d)
+      if (h !== null) setHasHeader(h === '1')
+    })()
+  }, [])
   const [diffRows, setDiffRows] = useState<DiffRow[]>([])
   const [headers, setHeaders] = useState<string[]>([])
   const [numCols, setNumCols] = useState(0)
@@ -267,6 +281,15 @@ export function TableMode() {
       return acc
     }, {} as Record<string, number>)
     setStats({ added: counts.added || 0, removed: counts.removed || 0, changed: counts.changed || 0, same: counts.same || 0 })
+  }, [leftText, rightText, delimiter, hasHeader])
+
+  const shareTable = useCallback(async () => {
+    if (!leftText.trim() && !rightText.trim()) return
+    const [encL, encR] = await Promise.all([encodeText(leftText), encodeText(rightText)])
+    const params = new URLSearchParams({ l: encL, r: encR, d: delimiter, h: hasHeader ? '1' : '0' })
+    await navigator.clipboard.writeText(`${window.location.origin}/table?${params.toString()}`)
+    setShareCopied(true)
+    setTimeout(() => setShareCopied(false), 2000)
   }, [leftText, rightText, delimiter, hasHeader])
 
   function handleFile(side: 'left' | 'right', file: File) {
@@ -349,6 +372,15 @@ export function TableMode() {
               Export CSV
             </button>
           )}
+
+          <button
+            className="btn outlined"
+            title="Copy shareable link to clipboard"
+            disabled={!leftText.trim() && !rightText.trim()}
+            onClick={shareTable}
+          >
+            {shareCopied ? 'Copied!' : 'Share'}
+          </button>
 
           <button onClick={toggleTheme} className="btn icon" aria-label="Toggle theme">
             {themeMode === 'system' ? <MonitorIcon /> : themeMode === 'dark' ? <SunIcon /> : <MoonIcon />}
