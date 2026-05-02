@@ -5,6 +5,7 @@ import type { editor } from 'monaco-editor'
 import { ColumnLabels } from './components/column-labels'
 import { EmptyState } from './components/empty-state'
 import { MobileEditor } from './components/mobile-editor'
+import { ModeTabs } from './components/mode-tabs'
 import { SettingsPanel } from './components/settings-panel'
 import { StatusBar } from './components/status-bar'
 import { Toolbar } from './components/toolbar'
@@ -113,6 +114,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
     smoothScrolling: settings.smoothScrolling,
     renderLineHighlight: settings.renderLineHighlight,
     ignoreTrimWhitespace: settings.ignoreWhitespace,
+    diffAlgorithm: settings.diffAlgorithm === 'smart' ? 'advanced' : 'legacy',
   }), [inline, wordWrap, settings])
 
   const singleEditorOptions = useMemo((): editor.IStandaloneEditorConstructionOptions => ({
@@ -296,6 +298,8 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
       setStats(computeStats(ov, mv, {
         ignoreCase: settingsRef.current.ignoreCase,
         ignoreWhitespace: settingsRef.current.ignoreWhitespace,
+        ignoreBlankLines: settingsRef.current.ignoreBlankLines,
+        lineFilter: settingsRef.current.lineFilter,
       }))
       setHasContent(ov.trim().length > 0 || mv.trim().length > 0)
     }, 200)
@@ -495,6 +499,8 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
           />
         )}
       </div>
+
+      <ModeTabs />
 
       {!isMobile && <ColumnLabels inline={inline} />}
 

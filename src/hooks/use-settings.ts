@@ -19,6 +19,9 @@ export interface Settings {
   matchBrackets: 'always' | 'near' | 'never'
   ignoreCase: boolean
   ignoreWhitespace: boolean
+  ignoreBlankLines: boolean
+  diffAlgorithm: 'smart' | 'legacy'
+  lineFilter: string
 }
 
 const DEFAULTS: Settings = {
@@ -40,6 +43,9 @@ const DEFAULTS: Settings = {
   matchBrackets: 'always',
   ignoreCase: false,
   ignoreWhitespace: false,
+  ignoreBlankLines: false,
+  diffAlgorithm: 'smart',
+  lineFilter: '',
 }
 
 const STORAGE_KEY = 'diff-settings'

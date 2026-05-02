@@ -768,6 +768,102 @@ kbd {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Amber token (for changed cells/rows) ─────────────────── */
+
+:root {
+  --amber: oklch(62% 0.16 80);
+  --amber-bg: oklch(95% 0.05 80);
+}
+.dark {
+  --amber: oklch(78% 0.14 80);
+  --amber-bg: oklch(20% 0.05 80);
+}
+
+/* ── Mode tabs ─────────────────────────────────────────────── */
+
+.mode-tabs {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 8px;
+  gap: 2px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.mode-tabs::-webkit-scrollbar { display: none; }
+
+.mode-tab {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  color: var(--text-muted);
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.15s var(--ease-out);
+  white-space: nowrap;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+}
+.mode-tab:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.mode-tab.active {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-weight: 600;
+}
+.mode-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Table diff ────────────────────────────────────────────── */
+
+.table-diff-header {
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  border-right: 1px solid var(--border-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--surface);
+}
+
+.table-diff-cell {
+  padding: 0 10px;
+  font-size: 12.5px;
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  border-right: 1px solid var(--border-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  height: 34px;
+}
+
+/* ── Toolbar link reset ────────────────────────────────────── */
+
+.toolbar-title-link {
+  text-decoration: none;
+  color: inherit;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

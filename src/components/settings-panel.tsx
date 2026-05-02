@@ -97,6 +97,39 @@ export function SettingsPanel({ settings, onUpdate, onReset, onClose, wordWrap, 
           <SettingRow label="Ignore whitespace">
             <Toggle checked={settings.ignoreWhitespace} onChange={(v) => onUpdate('ignoreWhitespace', v)} />
           </SettingRow>
+
+          <SettingRow label="Ignore blank lines">
+            <Toggle checked={settings.ignoreBlankLines} onChange={(v) => onUpdate('ignoreBlankLines', v)} />
+          </SettingRow>
+
+          <SettingRow label="Diff algorithm">
+            <Select value={settings.diffAlgorithm} onChange={(v) => onUpdate('diffAlgorithm', v)} options={[
+              { value: 'smart', label: 'Smart' },
+              { value: 'legacy', label: 'Legacy' },
+            ]} />
+          </SettingRow>
+
+          <SettingRow label="Ignore pattern">
+            <input
+              type="text"
+              value={settings.lineFilter}
+              onChange={(e) => onUpdate('lineFilter', e.target.value)}
+              placeholder="Regex (e.g. ^#)"
+              title="Lines matching this regex are ignored in the diff"
+              style={{
+                height: 26,
+                padding: '0 8px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 11.5,
+                color: 'var(--text)',
+                background: 'var(--surface-raised)',
+                border: '1px solid var(--border)',
+                borderRadius: 6,
+                outline: 'none',
+                width: 140,
+              }}
+            />
+          </SettingRow>
         </div>
 
         <div className="settings-section">

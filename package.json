@@ -16,6 +16,7 @@
     "@prettier/plugin-xml": "^3.4.0",
     "@tanstack/react-router": "^1.168.6",
     "monaco-editor": "^0.55.1",
+    "papaparse": "^5.5.3",
     "prettier": "^3.4.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -26,6 +27,7 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.30.0",
     "@tailwindcss/vite": "^4.0.0",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",

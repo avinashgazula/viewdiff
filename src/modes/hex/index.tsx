@@ -1,0 +1,334 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ModeTabs } from '../../components/mode-tabs'
+import { useTheme } from '../../hooks/use-theme'
+import { MoonIcon, MonitorIcon, SunIcon } from '../../components/icons'
+
+const BYTES_PER_ROW = 16
+const ROW_HEIGHT = 22
+const MAX_DIFF_BYTES = 10 * 1024 * 1024 // 10 MB for diff
+
+interface HexDiff {
+  leftBytes: Uint8Array
+  rightBytes: Uint8Array
+  diffMask: Uint8Array // 1 = different, 0 = same
+  totalLeft: number
+  totalRight: number
+}
+
+function computeHexDiff(left: Uint8Array, right: Uint8Array): HexDiff {
+  const maxLen = Math.max(left.length, right.length)
+  const diffMask = new Uint8Array(maxLen)
+  for (let i = 0; i < maxLen; i++) {
+    diffMask[i] = left[i] !== right[i] ? 1 : 0
+  }
+  return { leftBytes: left, rightBytes: right, diffMask, totalLeft: left.length, totalRight: right.length }
+}
+
+function toHex2(n: number | undefined): string {
+  if (n === undefined) return '  '
+  return n.toString(16).toUpperCase().padStart(2, '0')
+}
+
+function toAscii(n: number | undefined): string {
+  if (n === undefined) return ' '
+  return n >= 32 && n < 127 ? String.fromCharCode(n) : '·'
+}
+
+function formatOffset(n: number): string {
+  return n.toString(16).toUpperCase().padStart(8, '0')
+}
+
+interface HexRowProps {
+  offset: number
+  bytes: Uint8Array
+  diffBytes: Uint8Array
+  diffMask: Uint8Array
+  side: 'left' | 'right'
+}
+
+function HexRow({ offset, bytes, diffBytes, diffMask, side }: HexRowProps) {
+  const cells: React.ReactNode[] = []
+  const ascii: React.ReactNode[] = []
+
+  for (let i = 0; i < BYTES_PER_ROW; i++) {
+    const byteIdx = offset + i
+    const val = bytes[byteIdx]
+    const isDiff = byteIdx < diffMask.length && diffMask[byteIdx] === 1
+    const isPresent = byteIdx < bytes.length
+
+    const color = isDiff
+      ? (side === 'left' ? 'var(--red)' : 'var(--green)')
+      : 'inherit'
+    const bg = isDiff
+      ? (side === 'left' ? 'var(--red-bg)' : 'var(--green-bg)')
+      : 'transparent'
+
+    cells.push(
+      <span key={i} style={{
+        color, background: bg, borderRadius: 2, padding: '0 1px',
+        fontFamily: 'var(--font-mono)', fontSize: 12,
+        opacity: isPresent ? 1 : 0.2,
+      }}>
+        {toHex2(val)}
+      </span>,
+    )
+    if (i === 7) cells.push(<span key="mid" style={{ width: 8, display: 'inline-block' }} />)
+
+    ascii.push(
+      <span key={i} style={{
+        color, fontFamily: 'var(--font-mono)', fontSize: 12,
+        opacity: isPresent ? 1 : 0.2,
+      }}>
+        {toAscii(val)}
+      </span>,
+    )
+  }
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      height: ROW_HEIGHT,
+      padding: '0 8px',
+      gap: 16,
+      borderBottom: '1px solid var(--border-subtle)',
+    }}>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)', width: 72, flexShrink: 0 }}>
+        {formatOffset(offset)}
+      </span>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap' }}>
+        {cells}
+      </div>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', borderLeft: '1px solid var(--border)', paddingLeft: 12, letterSpacing: '0.05em' }}>
+        {ascii}
+      </div>
+    </div>
+  )
+}
+
+function VirtualHexDump({ diff, side, containerHeight }: {
+  diff: HexDiff
+  side: 'left' | 'right'
+  containerHeight: number
+}) {
+  const [scrollTop, setScrollTop] = useState(0)
+  const bytes = side === 'left' ? diff.leftBytes : diff.rightBytes
+  const totalRows = Math.ceil(Math.max(diff.totalLeft, diff.totalRight) / BYTES_PER_ROW)
+
+  const buffer = 5
+  const startRow = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - buffer)
+  const endRow = Math.min(totalRows, Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + buffer)
+  const offsetY = startRow * ROW_HEIGHT
+
+  return (
+    <div
+      style={{ flex: 1, overflowY: 'auto', overflowX: 'auto' }}
+      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+    >
+      <div style={{ height: totalRows * ROW_HEIGHT, position: 'relative', minWidth: 520 }}>
+        <div style={{ transform: `translateY(${offsetY}px)` }}>
+          {Array.from({ length: endRow - startRow }, (_, i) => {
+            const row = startRow + i
+            return (
+              <HexRow
+                key={row}
+                offset={row * BYTES_PER_ROW}
+                bytes={bytes}
+                diffBytes={side === 'left' ? diff.rightBytes : diff.leftBytes}
+                diffMask={diff.diffMask}
+                side={side}
+              />
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function detectMime(bytes: Uint8Array): string {
+  const sig = Array.from(bytes.slice(0, 8)).map((b) => b.toString(16).toUpperCase().padStart(2, '0')).join(' ')
+  if (sig.startsWith('89 50 4E 47')) return 'PNG image'
+  if (sig.startsWith('FF D8 FF')) return 'JPEG image'
+  if (sig.startsWith('47 49 46')) return 'GIF image'
+  if (sig.startsWith('50 4B 03 04')) return 'ZIP archive'
+  if (sig.startsWith('25 50 44 46')) return 'PDF document'
+  if (sig.startsWith('7F 45 4C 46')) return 'ELF binary'
+  if (sig.startsWith('4D 5A')) return 'Windows executable'
+  if (sig.startsWith('CA FE BA BE')) return 'Java class file'
+  if (sig.startsWith('1F 8B')) return 'GZIP archive'
+  return 'Binary file'
+}
+
+export function HexMode() {
+  const { mode: themeMode, toggle: toggleTheme } = useTheme()
+  const [leftBytes, setLeftBytes] = useState<Uint8Array | null>(null)
+  const [rightBytes, setRightBytes] = useState<Uint8Array | null>(null)
+  const [leftFile, setLeftFile] = useState<File | null>(null)
+  const [rightFile, setRightFile] = useState<File | null>(null)
+  const [diff, setDiff] = useState<HexDiff | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const leftRef = useRef<HTMLDivElement>(null)
+  const rightRef = useRef<HTMLDivElement>(null)
+  const [paneHeight, setPaneHeight] = useState(400)
+
+  useEffect(() => {
+    const obs = new ResizeObserver((entries) => setPaneHeight(entries[0].contentRect.height))
+    if (leftRef.current) obs.observe(leftRef.current)
+    return () => obs.disconnect()
+  }, [diff])
+
+  async function loadFile(file: File): Promise<Uint8Array> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = (e) => resolve(new Uint8Array(e.target!.result as ArrayBuffer))
+      reader.onerror = reject
+      reader.readAsArrayBuffer(file)
+    })
+  }
+
+  async function handleFile(side: 'left' | 'right', file: File) {
+    if (file.size > MAX_DIFF_BYTES * 2) {
+      setError(`File too large (max ${MAX_DIFF_BYTES / 1024 / 1024 * 2} MB)`)
+      return
+    }
+    setLoading(true); setError(null)
+    try {
+      const bytes = await loadFile(file)
+      if (side === 'left') { setLeftBytes(bytes); setLeftFile(file) }
+      else { setRightBytes(bytes); setRightFile(file) }
+    } catch {
+      setError('Failed to read file')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!leftBytes || !rightBytes) { setDiff(null); return }
+    const left = leftBytes.slice(0, MAX_DIFF_BYTES)
+    const right = rightBytes.slice(0, MAX_DIFF_BYTES)
+    setDiff(computeHexDiff(left, right))
+  }, [leftBytes, rightBytes])
+
+  const stats = useMemo(() => {
+    if (!diff) return null
+    let changed = 0
+    for (let i = 0; i < diff.diffMask.length; i++) changed += diff.diffMask[i]
+    return {
+      changed,
+      total: diff.diffMask.length,
+      percentDiff: (changed / diff.diffMask.length) * 100,
+    }
+  }, [diff])
+
+  function FileDropZone({ side }: { side: 'left' | 'right' }) {
+    const [drag, setDrag] = useState(false)
+    const file = side === 'left' ? leftFile : rightFile
+    const bytes = side === 'left' ? leftBytes : rightBytes
+    return (
+      <div
+        style={{
+          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          border: `2px dashed ${drag ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 12, margin: 12,
+          background: drag ? 'var(--accent-subtle)' : 'var(--surface)', cursor: 'pointer', gap: 8,
+          minHeight: 160, transition: 'all 0.15s',
+        }}
+        onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
+        onDragLeave={() => setDrag(false)}
+        onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) handleFile(side, f) }}
+      >
+        {file && bytes ? (
+          <>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>{file.name}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+              {(file.size / 1024).toFixed(1)} KB · {detectMime(bytes)}
+            </div>
+            <label className="btn outlined" style={{ cursor: 'pointer', fontSize: 12, marginTop: 4 }}>
+              Replace
+              <input type="file" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(side, f) }} />
+            </label>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 28, color: 'var(--text-dim)' }}>+</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>
+              {side === 'left' ? 'Original file' : 'Modified file'}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>Drop any binary file or click to browse</div>
+            <label className="btn outlined" style={{ cursor: 'pointer', fontSize: 12, marginTop: 4 }}>
+              Browse
+              <input type="file" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(side, f) }} />
+            </label>
+          </>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-screen flex flex-col" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+      <nav className="toolbar" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
+        <div className="toolbar-brand">
+          <a href="/" className="toolbar-title-link" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <h1 className="toolbar-title">diff</h1>
+          </a>
+          <span className="toolbar-subtitle">compare anything</span>
+        </div>
+        <div className="toolbar-controls">
+          {loading && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading...</span>}
+          {error && <span style={{ fontSize: 12, color: 'var(--red)' }}>{error}</span>}
+          <div className="divider" aria-hidden="true" />
+          <button onClick={toggleTheme} className="btn icon">
+            {themeMode === 'system' ? <MonitorIcon /> : themeMode === 'dark' ? <SunIcon /> : <MoonIcon />}
+          </button>
+        </div>
+      </nav>
+
+      <ModeTabs />
+
+      {!diff ? (
+        <div style={{ flex: 1, display: 'flex' }}>
+          <FileDropZone side="left" />
+          <FileDropZone side="right" />
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+          <div ref={leftRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border)', minHeight: 0 }}>
+            <div style={{ padding: '4px 12px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', fontSize: 11.5, color: 'var(--text-secondary)', flexShrink: 0, display: 'flex', justifyContent: 'space-between' }}>
+              <span>{leftFile?.name}</span>
+              <span style={{ color: 'var(--text-dim)' }}>{leftBytes && detectMime(leftBytes)} · {leftFile && (leftFile.size / 1024).toFixed(1)} KB</span>
+            </div>
+            <VirtualHexDump diff={diff} side="left" containerHeight={paneHeight} />
+          </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div style={{ padding: '4px 12px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', fontSize: 11.5, color: 'var(--text-secondary)', flexShrink: 0, display: 'flex', justifyContent: 'space-between' }}>
+              <span>{rightFile?.name}</span>
+              <span style={{ color: 'var(--text-dim)' }}>{rightBytes && detectMime(rightBytes)} · {rightFile && (rightFile.size / 1024).toFixed(1)} KB</span>
+            </div>
+            <VirtualHexDump diff={diff} side="right" containerHeight={paneHeight} />
+          </div>
+        </div>
+      )}
+
+      <div className="status-bar">
+        <div style={{ display: 'flex', gap: 16 }}>
+          {stats && (
+            <>
+              <span className={stats.changed > 0 ? 'stat-red' : 'stat-green'}>
+                {stats.changed.toLocaleString()} bytes differ ({stats.percentDiff.toFixed(2)}%)
+              </span>
+              <span>{stats.total.toLocaleString()} bytes compared</span>
+            </>
+          )}
+          {!diff && <span>Drop two files to compare their bytes</span>}
+        </div>
+        <div style={{ fontSize: 11, display: 'flex', gap: 12 }}>
+          {leftFile && <span>L: {leftFile.size.toLocaleString()} B</span>}
+          {rightFile && <span>R: {rightFile.size.toLocaleString()} B</span>}
+        </div>
+      </div>
+    </div>
+  )
+}

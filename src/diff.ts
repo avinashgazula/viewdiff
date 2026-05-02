@@ -136,6 +136,8 @@ const EMPTY_STATS: DiffStats = { additions: 0, deletions: 0, changes: 0 }
 interface CompareOptions {
   ignoreCase?: boolean
   ignoreWhitespace?: boolean
+  ignoreBlankLines?: boolean
+  lineFilter?: string
 }
 
 /**
@@ -144,6 +146,11 @@ interface CompareOptions {
  * side but not the other. Good enough for a status bar.
  */
 export function computeStats(original: string, modified: string, opts: CompareOptions = {}): DiffStats {
+  let filterRe: RegExp | null = null
+  if (opts.lineFilter) {
+    try { filterRe = new RegExp(opts.lineFilter) } catch { /* invalid regex */ }
+  }
+
   const normalize = (line: string) => {
     let l = line
     if (opts.ignoreWhitespace) l = l.trim().replace(/\s+/g, ' ')
@@ -151,8 +158,14 @@ export function computeStats(original: string, modified: string, opts: CompareOp
     return l
   }
 
-  const origLines = original.split('\n').map(normalize)
-  const modLines = modified.split('\n').map(normalize)
+  const shouldKeep = (line: string) => {
+    if (opts.ignoreBlankLines && !line.trim()) return false
+    if (filterRe && filterRe.test(line)) return false
+    return true
+  }
+
+  const origLines = original.split('\n').filter(shouldKeep).map(normalize)
+  const modLines = modified.split('\n').filter(shouldKeep).map(normalize)
 
   const bothEmpty = origLines.length === 1 && origLines[0] === ''
     && modLines.length === 1 && modLines[0] === ''
