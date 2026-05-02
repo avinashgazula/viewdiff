@@ -19,6 +19,7 @@ interface Props {
   onChangeLang: (id: string) => void
   onFormat: () => void
   onSwap: () => void
+  onExport: () => void
   onToggleView: () => void
   onToggleWrap: () => void
   onClear: () => void
@@ -31,7 +32,7 @@ interface Props {
 
 export const Toolbar = memo(function Toolbar({
   language, detectedLang, effectiveLang, inline, wordWrap, formatting, dark,
-  onChangeLang, onFormat, onSwap, onToggleView, onToggleWrap, onClear, onShare, onOpenPalette, onToggleSettings, onToggleTheme, settingsOpen, themeMode, shareCopied, hasContent,
+  onChangeLang, onFormat, onSwap, onToggleView, onToggleWrap, onClear, onShare, onExport, onOpenPalette, onToggleSettings, onToggleTheme, settingsOpen, themeMode, shareCopied, hasContent,
 }: Props) {
   const fk = formatKeybinding
   const langLabel = languages.find((l) => l.id === detectedLang)?.label ?? detectedLang
@@ -98,6 +99,15 @@ export const Toolbar = memo(function Toolbar({
         </button>
         <button onClick={onClear} className="btn hide-mobile" aria-label="Clear both editors" title={`Clear (${fk('Ctrl')}+${fk('Shift')}+X)`}>
           Clear
+        </button>
+        <button
+          onClick={onExport}
+          disabled={!hasContent}
+          className="btn hide-mobile"
+          aria-label="Export as .patch file"
+          title={`Export patch (${fk('Ctrl')}+E)`}
+        >
+          Export
         </button>
         <button
           onClick={onShare}

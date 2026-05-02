@@ -22,6 +22,7 @@ export interface Settings {
   ignoreBlankLines: boolean
   diffAlgorithm: 'smart' | 'legacy'
   lineFilter: string
+  showMoves: boolean
 }
 
 const DEFAULTS: Settings = {
@@ -46,6 +47,7 @@ const DEFAULTS: Settings = {
   ignoreBlankLines: false,
   diffAlgorithm: 'smart',
   lineFilter: '',
+  showMoves: true,
 }
 
 const STORAGE_KEY = 'diff-settings'

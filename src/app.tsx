@@ -16,6 +16,7 @@ import { useTheme } from './hooks/use-theme'
 import { CommandPalette, type Command } from './palette'
 import { registerThemes } from './themes'
 import { encodeDiff, buildShareUrl } from './share'
+import { generatePatch, downloadText } from './export'
 
 const LazyDiffEditor = lazy(() =>
   import('@monaco-editor/react').then((m) => ({ default: m.DiffEditor }))
@@ -115,6 +116,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
     renderLineHighlight: settings.renderLineHighlight,
     ignoreTrimWhitespace: settings.ignoreWhitespace,
     diffAlgorithm: settings.diffAlgorithm === 'smart' ? 'advanced' : 'legacy',
+    experimental: { showMoves: settings.showMoves },
   }), [inline, wordWrap, settings])
 
   const singleEditorOptions = useMemo((): editor.IStandaloneEditorConstructionOptions => ({
@@ -244,6 +246,25 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
     setShareCopied(true)
     setTimeout(() => setShareCopied(false), 2000)
   }, [slug])
+
+  const exportPatch = useCallback(() => {
+    const orig = origEditorRef.current
+    const mod = modEditorRef.current
+    if (!orig || !mod) return
+    const ov = orig.getValue()
+    const mv = mod.getValue()
+    if (!ov.trim() && !mv.trim()) return
+    const patch = generatePatch(ov, mv, 'original', 'modified')
+    if (patch) downloadText(patch, 'changes.patch')
+  }, [])
+
+  const nextDiff = useCallback(() => {
+    origEditorRef.current?.trigger('keyboard', 'editor.action.diffReview.next', null)
+  }, [])
+
+  const prevDiff = useCallback(() => {
+    origEditorRef.current?.trigger('keyboard', 'editor.action.diffReview.prev', null)
+  }, [])
 
   const focusOriginal = useCallback(() => origEditorRef.current?.focus(), [])
   const focusModified = useCallback(() => modEditorRef.current?.focus(), [])
@@ -399,9 +420,19 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
 
   // --- Command palette ---
 
+  const MODE_PATHS = ['/','table','image','git','hex','folder','three-way']
+
+  const navigateMode = useCallback((idx: number) => {
+    const p = MODE_PATHS[idx]
+    if (p !== undefined) window.location.href = p === '/' ? '/' : `/${p}`
+  }, [])
+
   const commands: Command[] = useMemo(() => [
     { id: 'format', label: 'Format Document', shortcut: 'Ctrl+Shift+F', action: format },
     { id: 'share', label: 'Share Diff via URL', action: share },
+    { id: 'export', label: 'Export as .patch File', shortcut: 'Ctrl+E', action: exportPatch },
+    { id: 'next-diff', label: 'Next Difference', shortcut: 'F7', action: nextDiff },
+    { id: 'prev-diff', label: 'Previous Difference', shortcut: 'Shift+F7', action: prevDiff },
     { id: 'theme', label: 'Cycle Theme (System → Light → Dark)', shortcut: 'Ctrl+J', action: toggleTheme },
     ...(!isMobile ? [
       { id: 'view', label: 'Toggle Inline / Side-by-Side', shortcut: 'Ctrl+\\', action: toggleView },
@@ -433,6 +464,14 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
       { test: (e) => (e.ctrlKey || e.metaKey) && e.shiftKey && /^[xX]$/.test(e.key), action: clear },
       { test: (e) => (e.ctrlKey || e.metaKey) && e.key === '1', action: focusOriginal },
       { test: (e) => (e.ctrlKey || e.metaKey) && e.key === '2', action: focusModified },
+      { test: (e) => (e.ctrlKey || e.metaKey) && /^[eE]$/.test(e.key), action: exportPatch },
+      { test: (e) => e.key === 'F7' && !e.shiftKey, action: nextDiff },
+      { test: (e) => e.key === 'F7' && e.shiftKey, action: prevDiff },
+      // Alt+1–7 navigate modes
+      ...([0,1,2,3,4,5,6] as const).map((i) => ({
+        test: (e: KeyboardEvent) => e.altKey && e.key === String(i + 1),
+        action: () => navigateMode(i),
+      })),
     ]
 
     function handler(e: KeyboardEvent) {
@@ -453,7 +492,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [format, toggleTheme, toggleView, toggleWrap, toggleSettings, swap, clear, focusOriginal, focusModified])
+  }, [format, toggleTheme, toggleView, toggleWrap, toggleSettings, swap, clear, focusOriginal, focusModified, exportPatch, nextDiff, prevDiff, navigateMode])
 
   // --- Render ---
 
@@ -480,6 +519,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
           onFormat={format}
           onSwap={swap}
           onShare={share}
+          onExport={exportPatch}
           onToggleView={toggleView}
           onToggleWrap={toggleWrap}
           onClear={clear}

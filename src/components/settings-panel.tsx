@@ -130,6 +130,10 @@ export function SettingsPanel({ settings, onUpdate, onReset, onClose, wordWrap, 
               }}
             />
           </SettingRow>
+
+          <SettingRow label="Show moved blocks">
+            <Toggle checked={settings.showMoves} onChange={(v) => onUpdate('showMoves', v)} />
+          </SettingRow>
         </div>
 
         <div className="settings-section">

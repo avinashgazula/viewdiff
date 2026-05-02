@@ -4,6 +4,7 @@ import { useTheme } from '../../hooks/use-theme'
 import { MoonIcon, MonitorIcon, SunIcon } from '../../components/icons'
 import { parsePatch, reconstructSides, langFromPath, type FilePatch } from './patch-parser'
 import { registerThemes } from '../../themes'
+import { encodeText, decodeText } from '../../share'
 import type { editor } from 'monaco-editor'
 import type { Monaco } from '@monaco-editor/react'
 
@@ -40,6 +41,27 @@ export function GitMode() {
   const [parsed, setParsed] = useState<ReturnType<typeof parsePatch> | null>(null)
   const [selectedFile, setSelectedFile] = useState(0)
   const [inputVisible, setInputVisible] = useState(true)
+  const [shareCopied, setShareCopied] = useState(false)
+
+  // Load from URL on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const g = params.get('g')
+    if (g) {
+      decodeText(g).then((text) => {
+        if (text) setPatchText(text)
+      })
+    }
+  }, [])
+
+  const sharePatch = useCallback(async () => {
+    if (!patchText.trim()) return
+    const encoded = await encodeText(patchText)
+    const url = `${window.location.origin}/git?g=${encodeURIComponent(encoded)}`
+    await navigator.clipboard.writeText(url)
+    setShareCopied(true)
+    setTimeout(() => setShareCopied(false), 2000)
+  }, [patchText])
 
   useEffect(() => {
     if (!patchText.trim()) { setParsed(null); return }
@@ -99,6 +121,13 @@ export function GitMode() {
               <div className="divider" aria-hidden="true" />
               <button className="btn outlined" onClick={() => setInputVisible((v) => !v)}>
                 {inputVisible ? 'Hide input' : 'Edit patch'}
+              </button>
+              <button
+                className="btn outlined"
+                onClick={sharePatch}
+                title="Copy shareable link"
+              >
+                {shareCopied ? 'Copied!' : 'Share'}
               </button>
             </>
           )}

@@ -864,6 +864,36 @@ kbd {
   color: inherit;
 }
 
+/* ── Three-way merge decorations ───────────────────────────── */
+
+.tw-left-added   { background: oklch(93% 0.05 145 / 0.7) !important; }
+.tw-left-removed { background: oklch(93% 0.05 145 / 0.3) !important; }
+.tw-right-added  { background: oklch(90% 0.07 240 / 0.6) !important; }
+.tw-right-removed { background: oklch(90% 0.07 240 / 0.2) !important; }
+.tw-conflict     { background: oklch(90% 0.08 80 / 0.7)  !important; }
+.tw-base-changed { background: oklch(93% 0.03 260 / 0.6) !important; }
+
+.dark .tw-left-added   { background: oklch(28% 0.07 145 / 0.8) !important; }
+.dark .tw-left-removed { background: oklch(28% 0.07 145 / 0.3) !important; }
+.dark .tw-right-added  { background: oklch(22% 0.08 240 / 0.8) !important; }
+.dark .tw-right-removed { background: oklch(22% 0.08 240 / 0.3) !important; }
+.dark .tw-conflict     { background: oklch(26% 0.09 80  / 0.9) !important; }
+.dark .tw-base-changed { background: oklch(22% 0.03 260 / 0.8) !important; }
+
+/* ── Diff bar (status bar visual indicator) ─────────────────── */
+
+.diff-bar {
+  display: flex;
+  width: 80px;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.diff-bar-add  { background: var(--green); }
+.diff-bar-del  { background: var(--red); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
