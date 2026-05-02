@@ -233,6 +233,17 @@ function resolveConflictAtCursor(ed: editor.IStandaloneCodeEditor, choice: 'left
   ed.focus()
 }
 
+function resolveAllConflicts(ed: editor.IStandaloneCodeEditor, choice: 'left' | 'right') {
+  let safety = 200
+  while (safety-- > 0) {
+    const lines = ed.getModel()?.getLinesContent() ?? []
+    const idx = lines.findIndex((l) => l.startsWith('<<<<<<<'))
+    if (idx === -1) break
+    ed.setPosition({ lineNumber: idx + 1, column: 1 })
+    resolveConflictAtCursor(ed, choice)
+  }
+}
+
 function navigateConflict(ed: editor.IStandaloneCodeEditor, direction: 'next' | 'prev') {
   const model = ed.getModel()
   if (!model) return
@@ -449,28 +460,41 @@ export function ThreeWayMode() {
                     {stats.conflicts} conflict{stats.conflicts !== 1 ? 's' : ''}
                   </span>
                   <button className="btn outlined" style={{ fontSize: 11, height: 22, padding: '0 7px' }}
+                    title="Jump to previous conflict"
                     onClick={() => mergeRef.current && navigateConflict(mergeRef.current, 'prev')}>
                     ↑ Prev
                   </button>
                   <button className="btn outlined" style={{ fontSize: 11, height: 22, padding: '0 7px' }}
+                    title="Jump to next conflict"
                     onClick={() => mergeRef.current && navigateConflict(mergeRef.current, 'next')}>
                     ↓ Next
                   </button>
                   <div style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 2px' }} />
                   <button className="btn outlined" style={{ fontSize: 11, height: 22, padding: '0 7px', color: 'var(--green)' }}
-                    title="Replace conflict with left (mine) content"
+                    title="Replace conflict at cursor with left (mine) content"
                     onClick={() => mergeRef.current && resolveConflictAtCursor(mergeRef.current, 'left')}>
                     Use Left
                   </button>
                   <button className="btn outlined" style={{ fontSize: 11, height: 22, padding: '0 7px', color: 'oklch(60% 0.18 240)' }}
-                    title="Replace conflict with right (theirs) content"
+                    title="Replace conflict at cursor with right (theirs) content"
                     onClick={() => mergeRef.current && resolveConflictAtCursor(mergeRef.current, 'right')}>
                     Use Right
                   </button>
                   <button className="btn outlined" style={{ fontSize: 11, height: 22, padding: '0 7px' }}
-                    title="Keep both left and right content"
+                    title="Keep both left and right content for conflict at cursor"
                     onClick={() => mergeRef.current && resolveConflictAtCursor(mergeRef.current, 'both')}>
                     Use Both
+                  </button>
+                  <div style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 2px' }} />
+                  <button className="btn outlined" style={{ fontSize: 11, height: 22, padding: '0 7px', color: 'var(--green)' }}
+                    title="Resolve ALL conflicts using left content"
+                    onClick={() => mergeRef.current && resolveAllConflicts(mergeRef.current, 'left')}>
+                    All Left
+                  </button>
+                  <button className="btn outlined" style={{ fontSize: 11, height: 22, padding: '0 7px', color: 'oklch(60% 0.18 240)' }}
+                    title="Resolve ALL conflicts using right content"
+                    onClick={() => mergeRef.current && resolveAllConflicts(mergeRef.current, 'right')}>
+                    All Right
                   </button>
                 </>
               )}

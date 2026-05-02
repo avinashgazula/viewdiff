@@ -25,6 +25,20 @@ const LazyDiffEditor = lazy(() =>
 
 const EMPTY_STATS: DiffStats = { additions: 0, deletions: 0, changes: 0 }
 
+function detectEOL(text: string): string | null {
+  if (!text) return null
+  const hasCRLF = text.includes('\r\n')
+  // After stripping \r\n, check for bare \r or bare \n
+  const stripped = text.replace(/\r\n/g, '')
+  const hasBareNL = stripped.includes('\n')
+  const hasBareR = stripped.includes('\r')
+  if (hasCRLF && (hasBareNL || hasBareR)) return 'Mixed'
+  if (hasCRLF) return 'CRLF'
+  if (hasBareR) return 'CR'
+  if (hasBareNL) return 'LF'
+  return null
+}
+
 interface AppProps {
   defaultLanguage?: string
   initialOriginal?: string
@@ -72,6 +86,8 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [hasContent, setHasContent] = useState(false)
   const [editorReady, setEditorReady] = useState(false)
+  const [eolInfo, setEolInfo] = useState<{ orig: string | null; mod: string | null }>({ orig: null, mod: null })
+  const [isDragging, setIsDragging] = useState(false)
 
   // Abstracted editor refs — work for both DiffEditor and two separate editors
   const origEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
@@ -408,6 +424,42 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
   const focusModified = useCallback(() => modEditorRef.current?.focus(), [])
   const toggleView = useCallback(() => setInline((v) => !v), [])
   const toggleWrap = useCallback(() => setWordWrap((v) => !v), [])
+
+  const loadOriginal = useCallback((text: string) => {
+    origEditorRef.current?.setValue(text)
+    origEditorRef.current?.focus()
+  }, [])
+
+  const loadModified = useCallback((text: string) => {
+    modEditorRef.current?.setValue(text)
+    modEditorRef.current?.focus()
+  }, [])
+
+  // File drag-and-drop onto the editor area
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes('Files')) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+    setIsDragging(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    if (e.relatedTarget === null || !(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
+      setIsDragging(false)
+    }
+  }, [])
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files[0]
+    if (!file) return
+    const text = await file.text()
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const side = !inline && e.clientX > rect.left + rect.width / 2 ? 'modified' : 'original'
+    if (side === 'original') origEditorRef.current?.setValue(text)
+    else modEditorRef.current?.setValue(text)
+  }, [inline])
   const toggleSettings = useCallback(() => setSettingsOpen((v) => !v), [])
 
   const changeLang = useCallback((id: string) => {
@@ -462,6 +514,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
         lineFilter: settingsRef.current.lineFilter,
       }))
       setHasContent(ov.trim().length > 0 || mv.trim().length > 0)
+      setEolInfo({ orig: detectEOL(ov), mod: detectEOL(mv) })
     }, 200)
   }, [])
 
@@ -704,10 +757,37 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
 
       <ModeTabs />
 
-      {!isMobile && <ColumnLabels inline={inline} />}
+      {!isMobile && (
+        <ColumnLabels
+          inline={inline}
+          onLoadOriginal={loadOriginal}
+          onLoadModified={loadModified}
+        />
+      )}
 
-      <main id="diff-editor" className="flex-1 min-h-0 relative overflow-hidden" style={{ contain: 'strict', minHeight: '200px' }} aria-label="Diff editor">
-        {!hasContent && <EmptyState />}
+      <main
+        id="diff-editor"
+        className="flex-1 min-h-0 relative overflow-hidden"
+        style={{ contain: 'strict', minHeight: '200px' }}
+        aria-label="Diff editor"
+        onDragOverCapture={handleDragOver}
+        onDragLeaveCapture={handleDragLeave}
+        onDropCapture={handleDrop}
+      >
+        {!hasContent && !isDragging && <EmptyState />}
+
+        {isDragging && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 50, display: 'flex', pointerEvents: 'none' }}>
+            {!inline && (
+              <div style={{ flex: 1, border: '2px dashed var(--accent)', borderRadius: 4, margin: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--accent-subtle)', fontSize: 13, color: 'var(--accent)', fontWeight: 500 }}>
+                Drop → Original
+              </div>
+            )}
+            <div style={{ flex: 1, border: '2px dashed var(--accent)', borderRadius: 4, margin: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--accent-subtle)', fontSize: 13, color: 'var(--accent)', fontWeight: 500 }}>
+              {inline ? 'Drop file here' : 'Drop → Modified'}
+            </div>
+          </div>
+        )}
 
         <div className="editor-wrapper" style={{ height: '100%', opacity: editorReady ? 1 : 0, transition: 'opacity 0.1s' }}>
         {isMobile ? (
@@ -736,7 +816,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
         </div>
       </main>
 
-      <StatusBar stats={stats} />
+      <StatusBar stats={stats} eolInfo={eolInfo} />
 
       {paletteOpen && <CommandPalette commands={commands} onClose={() => setPaletteOpen(false)} />}
     </div>

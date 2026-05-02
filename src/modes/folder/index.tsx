@@ -73,6 +73,7 @@ export function FolderMode() {
   const [computing, setComputing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [filter, setFilter] = useState<FilterStatus>('all')
+  const [extFilter, setExtFilter] = useState('')
   const [leftName, setLeftName] = useState('')
   const [rightName, setRightName] = useState('')
 
@@ -171,7 +172,13 @@ export function FolderMode() {
     same: diffEntries.filter((e) => e.status === 'same').length,
   }
 
-  const filtered = filter === 'all' ? diffEntries : diffEntries.filter((e) => e.status === filter)
+  const byStatus = filter === 'all' ? diffEntries : diffEntries.filter((e) => e.status === filter)
+  const filtered = extFilter.trim()
+    ? (() => {
+        const exts = extFilter.split(',').map((x) => x.trim().replace(/^\*/, '').toLowerCase()).filter(Boolean)
+        return byStatus.filter((e) => exts.some((ext) => e.path.toLowerCase().endsWith(ext)))
+      })()
+    : byStatus
 
   const hasData = leftFiles.size > 0 || rightFiles.size > 0
 
@@ -246,6 +253,18 @@ export function FolderMode() {
                     : `Same (${stats.same})`}
                 </button>
               ))}
+              <input
+                type="text"
+                value={extFilter}
+                onChange={(e) => setExtFilter(e.target.value)}
+                placeholder="*.ts,*.tsx"
+                title="Filter by extension (comma-separated, e.g. *.ts,*.tsx)"
+                style={{
+                  height: 26, padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: 11.5,
+                  color: 'var(--text)', background: 'var(--surface-raised)',
+                  border: '1px solid var(--border)', borderRadius: 6, outline: 'none', width: 110,
+                }}
+              />
               <button
                 className="btn outlined"
                 title="Export comparison report as CSV"

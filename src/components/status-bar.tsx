@@ -2,8 +2,14 @@ import { memo } from 'react'
 import { formatKeybinding } from '../config'
 import type { DiffStats } from '../diff'
 
+interface EOLInfo {
+  orig: string | null
+  mod: string | null
+}
+
 interface Props {
   stats: DiffStats
+  eolInfo?: EOLInfo
 }
 
 function DiffBar({ additions, deletions }: { additions: number; deletions: number }) {
@@ -19,7 +25,26 @@ function DiffBar({ additions, deletions }: { additions: number; deletions: numbe
   )
 }
 
-export const StatusBar = memo(function StatusBar({ stats }: Props) {
+function EOLBadge({ orig, mod }: EOLInfo) {
+  if (!orig && !mod) return null
+  // Only show when noteworthy: non-LF endings or mismatch between sides
+  const showOrig = orig && orig !== 'LF'
+  const showMod = mod && mod !== 'LF'
+  const mismatch = orig && mod && orig !== mod
+
+  if (!showOrig && !showMod && !mismatch) return null
+
+  return (
+    <span
+      style={{ fontSize: 10.5, color: mismatch ? 'var(--amber)' : 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}
+      title={`Line endings — Original: ${orig ?? '?'}  Modified: ${mod ?? '?'}${mismatch ? '  (mismatch)' : ''}`}
+    >
+      {orig === mod ? orig : `${orig ?? '?'} / ${mod ?? '?'}`}
+    </span>
+  )
+}
+
+export const StatusBar = memo(function StatusBar({ stats, eolInfo }: Props) {
   const fk = formatKeybinding
 
   return (
@@ -35,6 +60,7 @@ export const StatusBar = memo(function StatusBar({ stats }: Props) {
         ) : (
           <span style={{ color: 'var(--text-dim)' }}>No differences</span>
         )}
+        {eolInfo && <EOLBadge orig={eolInfo.orig} mod={eolInfo.mod} />}
       </div>
       <div className="flex items-center gap-1.5" style={{ color: 'var(--text-dim)' }}>
         <kbd>{fk('Ctrl')}+K</kbd>
