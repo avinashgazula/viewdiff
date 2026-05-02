@@ -16,7 +16,7 @@ import { useTheme } from './hooks/use-theme'
 import { CommandPalette, type Command } from './palette'
 import { registerThemes } from './themes'
 import { encodeDiff, buildShareUrl } from './share'
-import { generatePatch, downloadText } from './export'
+import { generatePatch, generateHtmlDiff, downloadText } from './export'
 
 const LazyDiffEditor = lazy(() =>
   import('@monaco-editor/react').then((m) => ({ default: m.DiffEditor }))
@@ -74,6 +74,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
   // Abstracted editor refs — work for both DiffEditor and two separate editors
   const origEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
   const modEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+  const diffEditorRef = useRef<editor.IStandaloneDiffEditor | null>(null)
   const monacoRef = useRef<Monaco | null>(null)
 
   const caseCacheRef = useRef<{ original: string; modified: string } | null>(null)
@@ -258,6 +259,93 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
     if (patch) downloadText(patch, 'changes.patch')
   }, [])
 
+  const exportHtml = useCallback(() => {
+    const orig = origEditorRef.current
+    const mod = modEditorRef.current
+    if (!orig || !mod) return
+    const ov = orig.getValue()
+    const mv = mod.getValue()
+    if (!ov.trim() && !mv.trim()) return
+    const html = generateHtmlDiff(ov, mv, 'original', 'modified')
+    downloadText(html, 'diff.html', 'text/html')
+  }, [])
+
+  const acceptHunkFromOriginal = useCallback(() => {
+    const de = diffEditorRef.current
+    if (!de) return
+    const changes = de.getLineChanges()
+    if (!changes?.length) return
+
+    const orig = de.getOriginalEditor()
+    const mod = de.getModifiedEditor()
+    const origModel = orig.getModel()
+    const modModel = mod.getModel()
+    if (!origModel || !modModel) return
+
+    const cursorLine = mod.getPosition()?.lineNumber ?? 1
+
+    const change = changes.find((c) => {
+      const ms = c.modifiedStartLineNumber
+      const me = c.modifiedEndLineNumber || ms
+      return cursorLine >= ms - 1 && cursorLine <= me + 1
+    }) ?? changes[0]
+
+    if (!change) return
+
+    const { originalStartLineNumber: os, originalEndLineNumber: oe,
+            modifiedStartLineNumber: ms, modifiedEndLineNumber: me } = change
+
+    const origText = oe > 0
+      ? origModel.getValueInRange({ startLineNumber: os, startColumn: 1, endLineNumber: oe, endColumn: origModel.getLineMaxColumn(oe) })
+      : null
+
+    const modEnd = me > 0 ? me : ms
+    const modEndCol = modModel.getLineMaxColumn(modEnd)
+
+    modModel.pushEditOperations([], [{
+      range: { startLineNumber: ms, startColumn: 1, endLineNumber: modEnd, endColumn: modEndCol },
+      text: origText ?? '',
+    }], () => null)
+  }, [])
+
+  const acceptHunkFromModified = useCallback(() => {
+    const de = diffEditorRef.current
+    if (!de) return
+    const changes = de.getLineChanges()
+    if (!changes?.length) return
+
+    const orig = de.getOriginalEditor()
+    const mod = de.getModifiedEditor()
+    const origModel = orig.getModel()
+    const modModel = mod.getModel()
+    if (!origModel || !modModel) return
+
+    const cursorLine = mod.getPosition()?.lineNumber ?? 1
+
+    const change = changes.find((c) => {
+      const ms = c.modifiedStartLineNumber
+      const me = c.modifiedEndLineNumber || ms
+      return cursorLine >= ms - 1 && cursorLine <= me + 1
+    }) ?? changes[0]
+
+    if (!change) return
+
+    const { originalStartLineNumber: os, originalEndLineNumber: oe,
+            modifiedStartLineNumber: ms, modifiedEndLineNumber: me } = change
+
+    const modText = me > 0
+      ? modModel.getValueInRange({ startLineNumber: ms, startColumn: 1, endLineNumber: me, endColumn: modModel.getLineMaxColumn(me) })
+      : null
+
+    const origEnd = oe > 0 ? oe : os
+    const origEndCol = origModel.getLineMaxColumn(origEnd)
+
+    origModel.pushEditOperations([], [{
+      range: { startLineNumber: os, startColumn: 1, endLineNumber: origEnd, endColumn: origEndCol },
+      text: modText ?? '',
+    }], () => null)
+  }, [])
+
   const nextDiff = useCallback(() => {
     origEditorRef.current?.trigger('keyboard', 'editor.action.diffReview.next', null)
   }, [])
@@ -367,6 +455,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
 
   const onDiffMount = useCallback((de: editor.IStandaloneDiffEditor, monaco: Monaco) => {
     monacoRef.current = monaco
+    diffEditorRef.current = de
     const orig = de.getOriginalEditor()
     const mod = de.getModifiedEditor()
     origEditorRef.current = orig
@@ -431,6 +520,9 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
     { id: 'format', label: 'Format Document', shortcut: 'Ctrl+Shift+F', action: format },
     { id: 'share', label: 'Share Diff via URL', action: share },
     { id: 'export', label: 'Export as .patch File', shortcut: 'Ctrl+E', action: exportPatch },
+    { id: 'export-html', label: 'Export as HTML Diff', shortcut: 'Ctrl+Shift+E', action: exportHtml },
+    { id: 'accept-orig', label: 'Accept from Original (current hunk)', shortcut: 'Ctrl+Alt+←', action: acceptHunkFromOriginal },
+    { id: 'accept-mod', label: 'Accept from Modified (current hunk)', shortcut: 'Ctrl+Alt+→', action: acceptHunkFromModified },
     { id: 'next-diff', label: 'Next Difference', shortcut: 'F7', action: nextDiff },
     { id: 'prev-diff', label: 'Previous Difference', shortcut: 'Shift+F7', action: prevDiff },
     { id: 'theme', label: 'Cycle Theme (System → Light → Dark)', shortcut: 'Ctrl+J', action: toggleTheme },
@@ -448,7 +540,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
       label: `Language: ${l.label}`,
       action: () => changeLang(l.id),
     })),
-  ], [format, share, toggleTheme, toggleView, toggleWrap, swap, clear, toggleSettings, focusOriginal, focusModified, changeLang, isMobile])
+  ], [format, share, exportHtml, acceptHunkFromOriginal, acceptHunkFromModified, toggleTheme, toggleView, toggleWrap, swap, clear, toggleSettings, focusOriginal, focusModified, changeLang, isMobile])
 
   // --- Keyboard shortcuts ---
 
@@ -464,7 +556,10 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
       { test: (e) => (e.ctrlKey || e.metaKey) && e.shiftKey && /^[xX]$/.test(e.key), action: clear },
       { test: (e) => (e.ctrlKey || e.metaKey) && e.key === '1', action: focusOriginal },
       { test: (e) => (e.ctrlKey || e.metaKey) && e.key === '2', action: focusModified },
-      { test: (e) => (e.ctrlKey || e.metaKey) && /^[eE]$/.test(e.key), action: exportPatch },
+      { test: (e) => (e.ctrlKey || e.metaKey) && !e.shiftKey && /^[eE]$/.test(e.key), action: exportPatch },
+      { test: (e) => (e.ctrlKey || e.metaKey) && e.shiftKey && /^[eE]$/.test(e.key), action: exportHtml },
+      { test: (e) => (e.ctrlKey || e.metaKey) && e.altKey && e.key === 'ArrowLeft', action: acceptHunkFromOriginal },
+      { test: (e) => (e.ctrlKey || e.metaKey) && e.altKey && e.key === 'ArrowRight', action: acceptHunkFromModified },
       { test: (e) => e.key === 'F7' && !e.shiftKey, action: nextDiff },
       { test: (e) => e.key === 'F7' && e.shiftKey, action: prevDiff },
       // Alt+1–7 navigate modes
@@ -492,7 +587,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [format, toggleTheme, toggleView, toggleWrap, toggleSettings, swap, clear, focusOriginal, focusModified, exportPatch, nextDiff, prevDiff, navigateMode])
+  }, [format, toggleTheme, toggleView, toggleWrap, toggleSettings, swap, clear, focusOriginal, focusModified, exportPatch, exportHtml, acceptHunkFromOriginal, acceptHunkFromModified, nextDiff, prevDiff, navigateMode])
 
   // --- Render ---
 

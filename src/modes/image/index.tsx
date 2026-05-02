@@ -330,6 +330,29 @@ export function ImageMode() {
 
           <div className="divider" aria-hidden="true" />
 
+          {diffResult && (
+            <button
+              className="btn outlined"
+              title="Download diff image as PNG"
+              onClick={() => {
+                const imgData = overlayMode === 'blend' ? null
+                  : overlayMode === 'difference' ? diffResult.differenceImageData
+                  : overlayMode === 'highlight' ? diffResult.highlightImageData
+                  : null
+                if (!imgData) return
+                const c = document.createElement('canvas')
+                c.width = imgData.width; c.height = imgData.height
+                c.getContext('2d')!.putImageData(imgData, 0, 0)
+                const a = document.createElement('a')
+                a.download = `diff-${overlayMode}.png`
+                a.href = c.toDataURL('image/png')
+                a.click()
+              }}
+            >
+              Save PNG
+            </button>
+          )}
+
           <button onClick={toggleTheme} className="btn icon">
             {themeMode === 'system' ? <MonitorIcon /> : themeMode === 'dark' ? <SunIcon /> : <MoonIcon />}
           </button>

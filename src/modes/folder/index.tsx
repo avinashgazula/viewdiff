@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ModeTabs } from '../../components/mode-tabs'
 import { useTheme } from '../../hooks/use-theme'
 import { MoonIcon, MonitorIcon, SunIcon } from '../../components/icons'
+import { downloadText } from '../../export'
 
 type FileStatus = 'same' | 'different' | 'left-only' | 'right-only'
 
@@ -245,6 +246,17 @@ export function FolderMode() {
                     : `Same (${stats.same})`}
                 </button>
               ))}
+              <button
+                className="btn outlined"
+                title="Export comparison report as CSV"
+                onClick={() => {
+                  const rows = ['Status,Path']
+                  for (const e of diffEntries) rows.push(`${e.status},"${e.path.replace(/"/g, '""')}"`)
+                  downloadText(rows.join('\n'), 'folder-diff.csv', 'text/csv')
+                }}
+              >
+                Export CSV
+              </button>
               <div className="divider" aria-hidden="true" />
             </>
           )}

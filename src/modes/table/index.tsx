@@ -3,6 +3,7 @@ import Papa from 'papaparse'
 import { ModeTabs } from '../../components/mode-tabs'
 import { useTheme } from '../../hooks/use-theme'
 import { MoonIcon, MonitorIcon, SunIcon } from '../../components/icons'
+import { downloadText } from '../../export'
 
 type Row = string[]
 type ColMap = number[] // colMap[rightColIdx] = leftColIdx or -1
@@ -324,6 +325,30 @@ export function TableMode() {
           </button>
 
           <div className="divider" aria-hidden="true" />
+
+          {diffRows.length > 0 && (
+            <button
+              className="btn outlined"
+              title="Export diff as CSV"
+              onClick={() => {
+                const lines: string[] = []
+                const quote = (s: string) => `"${String(s ?? '').replace(/"/g, '""')}"`
+                if (headers.length > 0) lines.push(['_diff_', ...headers].map(quote).join(','))
+                for (const row of diffRows) {
+                  if (row.type === 'same') continue
+                  if (row.type === 'removed' || row.type === 'changed') {
+                    lines.push(['-', ...(row.left ?? [])].map(quote).join(','))
+                  }
+                  if (row.type === 'added' || row.type === 'changed') {
+                    lines.push(['+', ...(row.right ?? [])].map(quote).join(','))
+                  }
+                }
+                downloadText(lines.join('\n'), 'table-diff.csv', 'text/csv')
+              }}
+            >
+              Export CSV
+            </button>
+          )}
 
           <button onClick={toggleTheme} className="btn icon" aria-label="Toggle theme">
             {themeMode === 'system' ? <MonitorIcon /> : themeMode === 'dark' ? <SunIcon /> : <MoonIcon />}
