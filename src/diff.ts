@@ -137,6 +137,7 @@ interface CompareOptions {
   ignoreCase?: boolean
   ignoreWhitespace?: boolean
   ignoreBlankLines?: boolean
+  ignoreLineEndings?: boolean
   lineFilter?: string
 }
 
@@ -146,6 +147,9 @@ interface CompareOptions {
  * side but not the other. Good enough for a status bar.
  */
 export function computeStats(original: string, modified: string, opts: CompareOptions = {}): DiffStats {
+  const stripCR = (s: string) => s.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  if (opts.ignoreLineEndings) { original = stripCR(original); modified = stripCR(modified) }
+
   let filterRe: RegExp | null = null
   if (opts.lineFilter) {
     try { filterRe = new RegExp(opts.lineFilter) } catch { /* invalid regex */ }

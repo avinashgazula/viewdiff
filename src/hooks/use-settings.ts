@@ -20,6 +20,7 @@ export interface Settings {
   ignoreCase: boolean
   ignoreWhitespace: boolean
   ignoreBlankLines: boolean
+  ignoreLineEndings: boolean
   diffAlgorithm: 'smart' | 'legacy'
   lineFilter: string
   showMoves: boolean
@@ -45,6 +46,7 @@ const DEFAULTS: Settings = {
   ignoreCase: false,
   ignoreWhitespace: false,
   ignoreBlankLines: false,
+  ignoreLineEndings: false,
   diffAlgorithm: 'smart',
   lineFilter: '',
   showMoves: true,

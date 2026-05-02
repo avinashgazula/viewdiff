@@ -192,6 +192,68 @@ function applyDecorations(
   return ed.createDecorationsCollection(decos)
 }
 
+// --- Conflict resolution helpers (operate on merge editor content) ---
+
+function resolveConflictAtCursor(ed: editor.IStandaloneCodeEditor, choice: 'left' | 'right' | 'both') {
+  const model = ed.getModel()
+  if (!model) return
+
+  const lines = model.getLinesContent()
+  const cursorLine0 = (ed.getPosition()?.lineNumber ?? 1) - 1
+
+  // Scan backwards from cursor to find <<<<<<<
+  let startLine0 = -1
+  for (let i = Math.min(cursorLine0, lines.length - 1); i >= 0; i--) {
+    if (lines[i].startsWith('<<<<<<<')) { startLine0 = i; break }
+    if (lines[i].startsWith('>>>>>>>')) break
+  }
+  if (startLine0 === -1) return
+
+  let sepLine0 = -1, baseSep0 = -1, endLine0 = -1
+  for (let i = startLine0 + 1; i < lines.length; i++) {
+    if (lines[i].startsWith('|||||||')) baseSep0 = i
+    else if (lines[i].startsWith('=======') && sepLine0 === -1) sepLine0 = i
+    else if (lines[i].startsWith('>>>>>>>')) { endLine0 = i; break }
+  }
+  if (sepLine0 === -1 || endLine0 === -1) return
+
+  const leftContent = lines.slice(startLine0 + 1, baseSep0 !== -1 ? baseSep0 : sepLine0)
+  const rightContent = lines.slice(sepLine0 + 1, endLine0)
+
+  const replacement = choice === 'left' ? leftContent : choice === 'right' ? rightContent : [...leftContent, ...rightContent]
+
+  model.pushEditOperations([], [{
+    range: {
+      startLineNumber: startLine0 + 1, startColumn: 1,
+      endLineNumber: endLine0 + 1, endColumn: model.getLineMaxColumn(endLine0 + 1),
+    },
+    text: replacement.join('\n'),
+  }], () => null)
+
+  ed.focus()
+}
+
+function navigateConflict(ed: editor.IStandaloneCodeEditor, direction: 'next' | 'prev') {
+  const model = ed.getModel()
+  if (!model) return
+  const lines = model.getLinesContent()
+  const cursorLine = ed.getPosition()?.lineNumber ?? 1
+
+  const conflictStarts: number[] = []
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].startsWith('<<<<<<<')) conflictStarts.push(i + 1)
+  }
+  if (conflictStarts.length === 0) return
+
+  const target = direction === 'next'
+    ? (conflictStarts.find((l) => l > cursorLine) ?? conflictStarts[0])
+    : ([...conflictStarts].reverse().find((l) => l < cursorLine) ?? conflictStarts[conflictStarts.length - 1])
+
+  ed.setPosition({ lineNumber: target, column: 1 })
+  ed.revealLineInCenter(target)
+  ed.focus()
+}
+
 // --- Three-Way Component ---
 
 interface PanelProps {
@@ -377,13 +439,45 @@ export function ThreeWayMode() {
         {/* Merge result panel */}
         {showMerge && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--border)', minHeight: 0 }}>
-            <div style={{ height: 26, display: 'flex', alignItems: 'center', padding: '0 12px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', flexShrink: 0, justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 11, fontWeight: 650, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)' }}>
-                Merge Result {stats && stats.conflicts > 0 ? `— ${stats.conflicts} conflict${stats.conflicts !== 1 ? 's' : ''} need resolution` : '(clean)'}
+            <div style={{ height: 32, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 4, background: 'var(--surface)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 650, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', marginRight: 4 }}>
+                Merge Result
               </span>
+              {stats && stats.conflicts > 0 && (
+                <>
+                  <span style={{ fontSize: 11, color: 'var(--amber)', marginRight: 4 }}>
+                    {stats.conflicts} conflict{stats.conflicts !== 1 ? 's' : ''}
+                  </span>
+                  <button className="btn outlined" style={{ fontSize: 11, height: 22, padding: '0 7px' }}
+                    onClick={() => mergeRef.current && navigateConflict(mergeRef.current, 'prev')}>
+                    ↑ Prev
+                  </button>
+                  <button className="btn outlined" style={{ fontSize: 11, height: 22, padding: '0 7px' }}
+                    onClick={() => mergeRef.current && navigateConflict(mergeRef.current, 'next')}>
+                    ↓ Next
+                  </button>
+                  <div style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 2px' }} />
+                  <button className="btn outlined" style={{ fontSize: 11, height: 22, padding: '0 7px', color: 'var(--green)' }}
+                    title="Replace conflict with left (mine) content"
+                    onClick={() => mergeRef.current && resolveConflictAtCursor(mergeRef.current, 'left')}>
+                    Use Left
+                  </button>
+                  <button className="btn outlined" style={{ fontSize: 11, height: 22, padding: '0 7px', color: 'oklch(60% 0.18 240)' }}
+                    title="Replace conflict with right (theirs) content"
+                    onClick={() => mergeRef.current && resolveConflictAtCursor(mergeRef.current, 'right')}>
+                    Use Right
+                  </button>
+                  <button className="btn outlined" style={{ fontSize: 11, height: 22, padding: '0 7px' }}
+                    title="Keep both left and right content"
+                    onClick={() => mergeRef.current && resolveConflictAtCursor(mergeRef.current, 'both')}>
+                    Use Both
+                  </button>
+                </>
+              )}
+              <span style={{ flex: 1 }} />
               <button
                 className="btn outlined"
-                style={{ fontSize: 11, height: 20, padding: '0 8px' }}
+                style={{ fontSize: 11, height: 22, padding: '0 8px' }}
                 onClick={() => {
                   const text = mergeRef.current?.getValue() ?? ''
                   navigator.clipboard.writeText(text)

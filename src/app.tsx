@@ -17,6 +17,7 @@ import { CommandPalette, type Command } from './palette'
 import { registerThemes } from './themes'
 import { encodeDiff, buildShareUrl } from './share'
 import { generatePatch, generateHtmlDiff, downloadText } from './export'
+import { useRecent } from './hooks/use-recent'
 
 const LazyDiffEditor = lazy(() =>
   import('@monaco-editor/react').then((m) => ({ default: m.DiffEditor }))
@@ -57,6 +58,7 @@ function EditorLoading() {
 export function App({ defaultLanguage = 'auto', initialOriginal, initialModified, slug = '/' }: AppProps) {
   const { dark, mode: themeMode, toggle: toggleTheme } = useTheme()
   const { settings, update: updateSetting, reset: resetSettings } = useSettings()
+  const { recents, add: addRecent } = useRecent()
   const isMobile = useIsMobile()
 
   const [language, setLanguage] = useState(defaultLanguage)
@@ -79,6 +81,8 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
 
   const caseCacheRef = useRef<{ original: string; modified: string } | null>(null)
   const ignoreCaseActiveRef = useRef(false)
+  const eolCacheRef = useRef<{ original: string; modified: string } | null>(null)
+  const ignoreEolActiveRef = useRef(false)
 
   const langRef = useRef(language)
   const detectedRef = useRef(detectedLang)
@@ -189,6 +193,28 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
       ignoreCaseActiveRef.current = false
     }
   }, [settings.ignoreCase])
+
+  // Ignore line endings toggle — normalize \r\n → \n in both models
+  useEffect(() => {
+    const orig = origEditorRef.current
+    const mod = modEditorRef.current
+    if (!orig || !mod) return
+    const normalize = (s: string) => s.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+
+    if (settings.ignoreLineEndings && !ignoreEolActiveRef.current) {
+      eolCacheRef.current = { original: orig.getValue(), modified: mod.getValue() }
+      orig.setValue(normalize(eolCacheRef.current.original))
+      mod.setValue(normalize(eolCacheRef.current.modified))
+      ignoreEolActiveRef.current = true
+    } else if (!settings.ignoreLineEndings && ignoreEolActiveRef.current) {
+      if (eolCacheRef.current) {
+        orig.setValue(eolCacheRef.current.original)
+        mod.setValue(eolCacheRef.current.modified)
+        eolCacheRef.current = null
+      }
+      ignoreEolActiveRef.current = false
+    }
+  }, [settings.ignoreLineEndings])
 
   // --- Editor actions ---
 
@@ -346,6 +372,30 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
     }], () => null)
   }, [])
 
+  const copyDiff = useCallback(async () => {
+    const orig = origEditorRef.current
+    const mod = modEditorRef.current
+    if (!orig || !mod) return
+    const ov = orig.getValue(), mv = mod.getValue()
+    if (!ov.trim() && !mv.trim()) return
+    const patch = generatePatch(ov, mv, 'original', 'modified')
+    if (patch) await navigator.clipboard.writeText(patch)
+  }, [])
+
+  // Auto-save to recent diffs after content stabilizes (5 s debounce)
+  const recentSaveRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const addRecentRef = useRef(addRecent)
+  useEffect(() => { addRecentRef.current = addRecent }, [addRecent])
+
+  const scheduleRecentSave = useCallback(() => {
+    clearTimeout(recentSaveRef.current)
+    recentSaveRef.current = setTimeout(() => {
+      const ov = origEditorRef.current?.getValue() ?? ''
+      const mv = modEditorRef.current?.getValue() ?? ''
+      addRecentRef.current(ov, mv)
+    }, 5000)
+  }, [])
+
   const nextDiff = useCallback(() => {
     origEditorRef.current?.trigger('keyboard', 'editor.action.diffReview.next', null)
   }, [])
@@ -408,6 +458,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
         ignoreCase: settingsRef.current.ignoreCase,
         ignoreWhitespace: settingsRef.current.ignoreWhitespace,
         ignoreBlankLines: settingsRef.current.ignoreBlankLines,
+        ignoreLineEndings: settingsRef.current.ignoreLineEndings,
         lineFilter: settingsRef.current.lineFilter,
       }))
       setHasContent(ov.trim().length > 0 || mv.trim().length > 0)
@@ -441,9 +492,13 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
       if (ignoreCaseActiveRef.current && caseCacheRef.current) {
         caseCacheRef.current[which] = ed.getValue()
       }
+      if (ignoreEolActiveRef.current && eolCacheRef.current) {
+        eolCacheRef.current[which] = ed.getValue()
+      }
       refresh()
+      scheduleRecentSave()
     })
-  }, [tryDetect, refresh])
+  }, [tryDetect, refresh, scheduleRecentSave])
 
   const remeasureFonts = useCallback((monaco: Monaco) => {
     document.fonts.ready.then(() => monaco.editor.remeasureFonts())
@@ -535,12 +590,24 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
     { id: 'settings', label: 'Open Settings', shortcut: 'Ctrl+,', action: toggleSettings },
     { id: 'focus-orig', label: 'Focus Original Editor', shortcut: 'Ctrl+1', action: focusOriginal },
     { id: 'focus-mod', label: 'Focus Modified Editor', shortcut: 'Ctrl+2', action: focusModified },
+    { id: 'copy-diff', label: 'Copy Diff as Patch Text', action: copyDiff },
     ...languages.map((l) => ({
       id: `lang-${l.id}`,
       label: `Language: ${l.label}`,
       action: () => changeLang(l.id),
     })),
-  ], [format, share, exportHtml, acceptHunkFromOriginal, acceptHunkFromModified, toggleTheme, toggleView, toggleWrap, swap, clear, toggleSettings, focusOriginal, focusModified, changeLang, isMobile])
+    ...(recents.length > 0 ? [
+      { id: 'recent-sep', label: '— Recent diffs —', action: () => {} },
+      ...recents.map((r) => ({
+        id: `recent-${r.id}`,
+        label: `Recent: ${r.preview || '(empty)'}`,
+        action: () => {
+          origEditorRef.current?.setValue(r.original)
+          modEditorRef.current?.setValue(r.modified)
+        },
+      })),
+    ] : []),
+  ], [format, share, copyDiff, exportHtml, acceptHunkFromOriginal, acceptHunkFromModified, toggleTheme, toggleView, toggleWrap, swap, clear, toggleSettings, focusOriginal, focusModified, changeLang, isMobile, recents])
 
   // --- Keyboard shortcuts ---
 

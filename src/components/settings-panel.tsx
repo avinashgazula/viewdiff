@@ -102,6 +102,10 @@ export function SettingsPanel({ settings, onUpdate, onReset, onClose, wordWrap, 
             <Toggle checked={settings.ignoreBlankLines} onChange={(v) => onUpdate('ignoreBlankLines', v)} />
           </SettingRow>
 
+          <SettingRow label="Ignore line endings">
+            <Toggle checked={settings.ignoreLineEndings} onChange={(v) => onUpdate('ignoreLineEndings', v)} />
+          </SettingRow>
+
           <SettingRow label="Diff algorithm">
             <Select value={settings.diffAlgorithm} onChange={(v) => onUpdate('diffAlgorithm', v)} options={[
               { value: 'smart', label: 'Smart' },
