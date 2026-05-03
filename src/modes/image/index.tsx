@@ -272,6 +272,19 @@ export function ImageMode() {
     setZoom(1)
   }, [overlayMode])
 
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return
+      if (e.key === '+' || e.key === '=') { e.preventDefault(); setZoom((z) => Math.min(8, z * 1.5)) }
+      else if (e.key === '-') { e.preventDefault(); setZoom((z) => Math.max(0.1, z / 1.5)) }
+      else if (e.key === '0') { e.preventDefault(); setZoom(0.5); setPan({ x: 0, y: 0 }) }
+      else if (e.key === '1') { e.preventDefault(); setZoom(1); setPan({ x: 0, y: 0 }) }
+      else if (e.key === '2') { e.preventDefault(); setZoom(2); setPan({ x: 0, y: 0 }) }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
   // Blend canvas
   useEffect(() => {
     if (overlayMode !== 'blend' || !blendCanvasRef.current || !leftImage || !rightImage) return
@@ -345,10 +358,21 @@ export function ImageMode() {
 
           <div className="divider" aria-hidden="true" />
 
-          <button className="btn" onClick={() => setZoom((z) => Math.min(8, z * 1.5))}>+</button>
-          <span style={{ fontSize: 12, minWidth: 36, textAlign: 'center', color: 'var(--text-secondary)' }}>{Math.round(zoom * 100)}%</span>
-          <button className="btn" onClick={() => setZoom((z) => Math.max(0.1, z / 1.5))}>−</button>
-          <button className="btn" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }}>Fit</button>
+          <button className="btn" onClick={() => setZoom((z) => Math.min(8, z * 1.5))} title="Zoom in">+</button>
+          <select
+            value={Math.round(zoom * 100)}
+            onChange={(e) => setZoom(Number(e.target.value) / 100)}
+            className="lang-select"
+            style={{ width: 72 }}
+            title="Zoom level"
+          >
+            {[10, 25, 50, 75, 100, 150, 200, 400, 800].map((p) => (
+              <option key={p} value={p}>{p}%</option>
+            ))}
+          </select>
+          <button className="btn" onClick={() => setZoom((z) => Math.max(0.1, z / 1.5))} title="Zoom out">−</button>
+          <button className="btn" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }} title="Reset to 100% and center">1:1</button>
+          <button className="btn" onClick={() => { setZoom(0.5); setPan({ x: 0, y: 0 }) }} title="Fit to view">Fit</button>
 
           <div className="divider" aria-hidden="true" />
 
