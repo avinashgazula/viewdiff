@@ -376,6 +376,31 @@ export function ImageMode() {
 
           <div className="divider" aria-hidden="true" />
 
+          {diffResult?.boundingBox && overlayMode !== 'swipe' && overlayMode !== 'blend' && (
+            <button
+              className="btn outlined"
+              style={{ fontSize: 11 }}
+              title="Zoom to the bounding box of changed pixels"
+              onClick={() => {
+                const bb = diffResult.boundingBox!
+                const w = Math.max(leftImage?.width ?? 1, rightImage?.width ?? 1)
+                const h = Math.max(leftImage?.height ?? 1, rightImage?.height ?? 1)
+                // Compute zoom so the bounding box fits in ~60% of the viewport
+                const viewW = window.innerWidth * 0.6
+                const viewH = window.innerHeight * 0.6
+                const zx = viewW / (bb.w + 40)
+                const zy = viewH / (bb.h + 40)
+                const newZoom = Math.min(8, Math.max(0.5, Math.min(zx, zy)))
+                const cx = (bb.x + bb.w / 2) / w
+                const cy = (bb.y + bb.h / 2) / h
+                setZoom(newZoom)
+                setPan({ x: (0.5 - cx) * w * newZoom, y: (0.5 - cy) * h * newZoom })
+              }}
+            >
+              Zoom to diff
+            </button>
+          )}
+
           {diffResult && (
             <button
               className="btn outlined"

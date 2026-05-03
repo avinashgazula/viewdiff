@@ -723,7 +723,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
 
   // --- Command palette ---
 
-  const MODE_PATHS = ['/','table','image','git','hex','folder','three-way']
+  const MODE_PATHS = ['/','table','json','image','git','hex','folder','three-way']
 
   const navigateMode = useCallback((idx: number) => {
     const p = MODE_PATHS[idx]

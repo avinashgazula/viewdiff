@@ -14,6 +14,7 @@ const GitMode = lazy(() => import('./modes/git').then((m) => ({ default: m.GitMo
 const HexMode = lazy(() => import('./modes/hex').then((m) => ({ default: m.HexMode })))
 const FolderMode = lazy(() => import('./modes/folder').then((m) => ({ default: m.FolderMode })))
 const ThreeWayMode = lazy(() => import('./modes/three-way').then((m) => ({ default: m.ThreeWayMode })))
+const JsonMode = lazy(() => import('./modes/json').then((m) => ({ default: m.JsonMode })))
 
 function ModeSuspense({ children }: { children: React.ReactNode }) {
   return (
@@ -68,6 +69,12 @@ const threeWayRoute = createRoute({
   component: () => <ModeSuspense><ThreeWayMode /></ModeSuspense>,
 })
 
+const jsonRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/json',
+  component: () => <ModeSuspense><JsonMode /></ModeSuspense>,
+})
+
 // Generate a route for every SEO page
 const pageRoutes = pages.map((page) =>
   createRoute({
@@ -91,6 +98,7 @@ const routeTree = rootRoute.addChildren([
   hexRoute,
   folderRoute,
   threeWayRoute,
+  jsonRoute,
   ...pageRoutes,
   catchAllRoute,
 ])

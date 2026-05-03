@@ -3,6 +3,7 @@ import { Link, useLocation } from '@tanstack/react-router'
 const MODES = [
   { path: '/', label: 'Text' },
   { path: '/table', label: 'Table' },
+  { path: '/json', label: 'JSON' },
   { path: '/image', label: 'Image' },
   { path: '/git', label: 'Git' },
   { path: '/hex', label: 'Hex' },
@@ -10,7 +11,7 @@ const MODES = [
   { path: '/three-way', label: '3-Way' },
 ] as const
 
-const MODE_PATHS = new Set(['/table', '/image', '/git', '/hex', '/folder', '/three-way'])
+const MODE_PATHS = new Set(['/table', '/json', '/image', '/git', '/hex', '/folder', '/three-way'])
 
 export function ModeTabs() {
   const location = useLocation()
