@@ -24,6 +24,7 @@ export interface Settings {
   diffAlgorithm: 'smart' | 'legacy'
   lineFilter: string
   showMoves: boolean
+  stickyScroll: boolean
 }
 
 const DEFAULTS: Settings = {
@@ -50,6 +51,7 @@ const DEFAULTS: Settings = {
   diffAlgorithm: 'smart',
   lineFilter: '',
   showMoves: true,
+  stickyScroll: false,
 }
 
 const STORAGE_KEY = 'diff-settings'

@@ -147,6 +147,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
     ignoreTrimWhitespace: settings.ignoreWhitespace,
     diffAlgorithm: settings.diffAlgorithm === 'smart' ? 'advanced' : 'legacy',
     experimental: { showMoves: settings.showMoves },
+    stickyScroll: { enabled: settings.stickyScroll },
   }), [inline, wordWrap, settings])
 
   const singleEditorOptions = useMemo((): editor.IStandaloneEditorConstructionOptions => ({
@@ -467,6 +468,15 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
   const copyModified = useCallback(async () => {
     const text = modEditorRef.current?.getValue() ?? ''
     if (text) await navigator.clipboard.writeText(text)
+  }, [])
+
+  const normalizeEOL = useCallback(() => {
+    const orig = origEditorRef.current
+    const mod = modEditorRef.current
+    if (!orig || !mod) return
+    const normalize = (s: string) => s.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    orig.setValue(normalize(orig.getValue()))
+    mod.setValue(normalize(mod.getValue()))
   }, [])
 
   // File drag-and-drop onto the editor area
@@ -892,6 +902,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
         stats={stats} eolInfo={eolInfo} wordCount={wordCount} charCount={charCount}
         cursorPos={cursorPos} diffNav={diffNav}
         language={languages.find((l) => l.id === effectiveLang)?.label}
+        onNormalizeEOL={normalizeEOL}
       />
 
       {paletteOpen && <CommandPalette commands={commands} onClose={() => setPaletteOpen(false)} />}

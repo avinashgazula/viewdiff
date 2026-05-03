@@ -15,6 +15,7 @@ interface Props {
   cursorPos?: { line: number; col: number } | null
   diffNav?: { index: number; total: number } | null
   language?: string
+  onNormalizeEOL?: () => void
 }
 
 function DiffBar({ additions, deletions }: { additions: number; deletions: number }) {
@@ -30,9 +31,8 @@ function DiffBar({ additions, deletions }: { additions: number; deletions: numbe
   )
 }
 
-function EOLBadge({ orig, mod }: EOLInfo) {
+function EOLBadge({ orig, mod, onNormalize }: EOLInfo & { onNormalize?: () => void }) {
   if (!orig && !mod) return null
-  // Only show when noteworthy: non-LF endings or mismatch between sides
   const showOrig = orig && orig !== 'LF'
   const showMod = mod && mod !== 'LF'
   const mismatch = orig && mod && orig !== mod
@@ -40,16 +40,28 @@ function EOLBadge({ orig, mod }: EOLInfo) {
   if (!showOrig && !showMod && !mismatch) return null
 
   return (
-    <span
-      style={{ fontSize: 10.5, color: mismatch ? 'var(--amber)' : 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}
-      title={`Line endings — Original: ${orig ?? '?'}  Modified: ${mod ?? '?'}${mismatch ? '  (mismatch)' : ''}`}
-    >
-      {orig === mod ? orig : `${orig ?? '?'} / ${mod ?? '?'}`}
+    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <span
+        style={{ fontSize: 10.5, color: mismatch ? 'var(--amber)' : 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}
+        title={`Line endings — Original: ${orig ?? '?'}  Modified: ${mod ?? '?'}${mismatch ? '  (mismatch)' : ''}`}
+      >
+        {orig === mod ? orig : `${orig ?? '?'} / ${mod ?? '?'}`}
+      </span>
+      {mismatch && onNormalize && (
+        <button
+          className="btn outlined"
+          style={{ fontSize: 10, height: 16, padding: '0 5px' }}
+          title="Normalize both sides to LF"
+          onClick={onNormalize}
+        >
+          Normalize
+        </button>
+      )}
     </span>
   )
 }
 
-export const StatusBar = memo(function StatusBar({ stats, eolInfo, wordCount, charCount, cursorPos, diffNav, language }: Props) {
+export const StatusBar = memo(function StatusBar({ stats, eolInfo, wordCount, charCount, cursorPos, diffNav, language, onNormalizeEOL }: Props) {
   const fk = formatKeybinding
 
   return (
@@ -72,7 +84,7 @@ export const StatusBar = memo(function StatusBar({ stats, eolInfo, wordCount, ch
         ) : (
           <span style={{ color: 'var(--text-dim)' }}>No differences</span>
         )}
-        {eolInfo && <EOLBadge orig={eolInfo.orig} mod={eolInfo.mod} />}
+        {eolInfo && <EOLBadge orig={eolInfo.orig} mod={eolInfo.mod} onNormalize={onNormalizeEOL} />}
         {wordCount && (wordCount.orig > 0 || wordCount.mod > 0) && (
           <span
             style={{ fontSize: 10.5, color: 'var(--text-dim)', fontVariantNumeric: 'tabular-nums' }}

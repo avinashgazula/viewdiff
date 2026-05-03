@@ -151,6 +151,7 @@ export function SettingsPanel({ settings, onUpdate, onReset, onClose, wordWrap, 
           <SettingRow label="Show moved blocks">
             <Toggle checked={settings.showMoves} onChange={(v) => onUpdate('showMoves', v)} />
           </SettingRow>
+
         </div>
 
         <div className="settings-section">
@@ -246,6 +247,10 @@ export function SettingsPanel({ settings, onUpdate, onReset, onClose, wordWrap, 
 
           <SettingRow label="Smooth scrolling">
             <Toggle checked={settings.smoothScrolling} onChange={(v) => onUpdate('smoothScrolling', v)} />
+          </SettingRow>
+
+          <SettingRow label="Sticky scroll">
+            <Toggle checked={settings.stickyScroll} onChange={(v) => onUpdate('stickyScroll', v)} />
           </SettingRow>
         </div>
 

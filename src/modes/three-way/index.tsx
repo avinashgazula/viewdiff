@@ -6,6 +6,7 @@ import { useTheme } from '../../hooks/use-theme'
 import { MoonIcon, MonitorIcon, SunIcon } from '../../components/icons'
 import { detectLanguage } from '../../diff'
 import { registerThemes } from '../../themes'
+import { downloadText } from '../../export'
 
 const LazyEditor = lazy(() =>
   import('@monaco-editor/react').then((m) => ({ default: m.Editor })),
@@ -366,6 +367,29 @@ export function ThreeWayMode() {
     }
   }, [])
 
+  // Keyboard shortcuts for merge panel
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if (!showMerge || !mergeRef.current) return
+      const ctrl = e.ctrlKey || e.metaKey
+      if (ctrl && e.altKey && e.key === 'ArrowDown') {
+        e.preventDefault()
+        navigateConflict(mergeRef.current, 'next')
+      } else if (ctrl && e.altKey && e.key === 'ArrowUp') {
+        e.preventDefault()
+        navigateConflict(mergeRef.current, 'prev')
+      } else if (ctrl && e.shiftKey && (e.key === 'L' || e.key === 'l')) {
+        e.preventDefault()
+        resolveConflictAtCursor(mergeRef.current, 'left')
+      } else if (ctrl && e.shiftKey && (e.key === 'R' || e.key === 'r')) {
+        e.preventDefault()
+        resolveConflictAtCursor(mergeRef.current, 'right')
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [showMerge])
+
   const panels = [
     { role: 'left' as const, label: 'Left (Mine)', ref: leftRef, text: leftText, onChange: setLeftText, accent: 'var(--green)' },
     { role: 'base' as const, label: 'Base', ref: baseRef, text: baseText, onChange: setBaseText, accent: 'var(--text-dim)' },
@@ -507,6 +531,9 @@ export function ThreeWayMode() {
                 </>
               )}
               <span style={{ flex: 1 }} />
+              {remainingConflicts === 0 && showMerge && (
+                <span style={{ fontSize: 11, color: 'var(--green)', marginRight: 8 }}>✓ All resolved</span>
+              )}
               <button
                 className="btn outlined"
                 style={{ fontSize: 11, height: 22, padding: '0 8px' }}
@@ -516,6 +543,16 @@ export function ThreeWayMode() {
                 }}
               >
                 Copy
+              </button>
+              <button
+                className="btn outlined"
+                style={{ fontSize: 11, height: 22, padding: '0 8px' }}
+                onClick={() => {
+                  const text = mergeRef.current?.getValue() ?? ''
+                  downloadText(text, 'merge-result.txt')
+                }}
+              >
+                Download
               </button>
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>

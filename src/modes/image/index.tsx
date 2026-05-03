@@ -265,6 +265,11 @@ export function ImageMode() {
     setLoading(false)
   }, [leftImage, rightImage, threshold])
 
+  useEffect(() => {
+    setPan({ x: 0, y: 0 })
+    setZoom(1)
+  }, [overlayMode])
+
   // Blend canvas
   useEffect(() => {
     if (overlayMode !== 'blend' || !blendCanvasRef.current || !leftImage || !rightImage) return

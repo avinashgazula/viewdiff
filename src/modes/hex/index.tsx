@@ -180,6 +180,21 @@ function detectMime(bytes: Uint8Array): string {
   return 'Binary file'
 }
 
+function getDiffRegions(diffMask: Uint8Array): Array<{ start: number; end: number }> {
+  const regions: Array<{ start: number; end: number }> = []
+  let i = 0
+  while (i < diffMask.length) {
+    if (diffMask[i] === 1) {
+      const start = i
+      while (i < diffMask.length && diffMask[i] === 1) i++
+      regions.push({ start, end: i - 1 })
+    } else {
+      i++
+    }
+  }
+  return regions
+}
+
 function findBytes(haystack: Uint8Array, needle: Uint8Array): number {
   if (needle.length === 0 || needle.length > haystack.length) return -1
   outer: for (let i = 0; i <= haystack.length - needle.length; i++) {
@@ -211,6 +226,7 @@ export function HexMode() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [jumpOffset, setJumpOffset] = useState<number | undefined>(undefined)
+  const [diffRegionIdx, setDiffRegionIdx] = useState(0)
   const leftRef = useRef<HTMLDivElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
   const [paneHeight, setPaneHeight] = useState(400)
@@ -274,6 +290,24 @@ export function HexMode() {
       percentDiff: (changed / diff.diffMask.length) * 100,
     }
   }, [diff])
+
+  const diffRegions = useMemo(() => (diff ? getDiffRegions(diff.diffMask) : []), [diff])
+
+  const jumpToDiffRegion = useCallback((idx: number) => {
+    const clamped = (idx + diffRegions.length) % diffRegions.length
+    setDiffRegionIdx(clamped)
+    setJumpOffset(diffRegions[clamped]?.start)
+  }, [diffRegions])
+
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if (diffRegions.length === 0) return
+      if (e.key === 'F7' && !e.shiftKey) { e.preventDefault(); jumpToDiffRegion(diffRegionIdx + 1) }
+      if (e.key === 'F7' && e.shiftKey) { e.preventDefault(); jumpToDiffRegion(diffRegionIdx - 1) }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [diffRegions, diffRegionIdx, jumpToDiffRegion])
 
   function FileDropZone({ side }: { side: 'left' | 'right' }) {
     const [drag, setDrag] = useState(false)
@@ -369,6 +403,29 @@ export function HexMode() {
                   else setError('Pattern not found')
                 }}
               />
+              {diffRegions.length > 0 && (
+                <>
+                  <button
+                    className="btn outlined"
+                    style={{ fontSize: 11, height: 26, padding: '0 8px' }}
+                    title="Previous diff region (Shift+F7)"
+                    onClick={() => jumpToDiffRegion(diffRegionIdx - 1)}
+                  >
+                    ↑ Prev
+                  </button>
+                  <span style={{ fontSize: 11, color: 'var(--text-dim)', minWidth: 40, textAlign: 'center' }}>
+                    {diffRegionIdx + 1}/{diffRegions.length}
+                  </span>
+                  <button
+                    className="btn outlined"
+                    style={{ fontSize: 11, height: 26, padding: '0 8px' }}
+                    title="Next diff region (F7)"
+                    onClick={() => jumpToDiffRegion(diffRegionIdx + 1)}
+                  >
+                    ↓ Next
+                  </button>
+                </>
+              )}
             </>
           )}
           <div className="divider" aria-hidden="true" />
