@@ -231,6 +231,7 @@ export function TableMode() {
   const [shareCopied, setShareCopied] = useState(false)
   const [sortCol, setSortCol] = useState<number | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [rowFilter, setRowFilter] = useState('')
 
   // Load from URL on mount
   useEffect(() => {
@@ -311,6 +312,19 @@ export function TableMode() {
     return [...headerRows, ...sorted]
   }, [diffRows, sortCol, sortDir, hasHeader])
 
+  const filteredRows = useMemo(() => {
+    const q = rowFilter.trim().toLowerCase()
+    if (!q || sortedRows.length === 0) return sortedRows
+    const hasHeaderRow = hasHeader && sortedRows[0]?.type === 'same' && sortedRows[0]?.left !== null
+    const header = hasHeaderRow ? [sortedRows[0]] : []
+    const data = hasHeaderRow ? sortedRows.slice(1) : sortedRows
+    const matched = data.filter((row) => {
+      const cells = [...(row.left ?? []), ...(row.right ?? [])]
+      return cells.some((c) => String(c ?? '').toLowerCase().includes(q))
+    })
+    return [...header, ...matched]
+  }, [sortedRows, rowFilter, hasHeader])
+
   const shareTable = useCallback(async () => {
     if (!leftText.trim() && !rightText.trim()) return
     const [encL, encR] = await Promise.all([encodeText(leftText), encodeText(rightText)])
@@ -374,6 +388,19 @@ export function TableMode() {
           >
             Diff only
           </button>
+
+          <input
+            type="search"
+            value={rowFilter}
+            onChange={(e) => setRowFilter(e.target.value)}
+            placeholder="Filter rows…"
+            aria-label="Filter table rows"
+            style={{
+              height: 26, padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: 11.5,
+              color: 'var(--text)', background: 'var(--surface-raised)',
+              border: '1px solid var(--border)', borderRadius: 6, outline: 'none', width: 130,
+            }}
+          />
 
           <div className="divider" aria-hidden="true" />
 
@@ -493,7 +520,7 @@ export function TableMode() {
             </div>
 
             <VirtualTableBody
-              rows={sortedRows}
+              rows={filteredRows}
               numCols={numCols}
               colMap={colMap}
               showOnlyDiff={showOnlyDiff}
@@ -512,7 +539,10 @@ export function TableMode() {
           {stats.same > 0 && <span>{stats.same} same</span>}
           {!hasDiff && <span>No data</span>}
         </div>
-        <div style={{ fontSize: 11 }}>{hasDiff ? `${numCols} columns` : ''}</div>
+        <div style={{ fontSize: 11 }}>
+          {hasDiff ? `${numCols} col${numCols !== 1 ? 's' : ''}` : ''}
+          {rowFilter.trim() && hasDiff ? ` · ${Math.max(0, filteredRows.length - (hasHeader ? 1 : 0))} rows` : ''}
+        </div>
       </div>
     </div>
   )

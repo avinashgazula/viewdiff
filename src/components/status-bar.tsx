@@ -12,6 +12,7 @@ interface Props {
   eolInfo?: EOLInfo
   wordCount?: { orig: number; mod: number }
   charCount?: { orig: number; mod: number }
+  cursorPos?: { line: number; col: number } | null
 }
 
 function DiffBar({ additions, deletions }: { additions: number; deletions: number }) {
@@ -46,7 +47,7 @@ function EOLBadge({ orig, mod }: EOLInfo) {
   )
 }
 
-export const StatusBar = memo(function StatusBar({ stats, eolInfo, wordCount, charCount }: Props) {
+export const StatusBar = memo(function StatusBar({ stats, eolInfo, wordCount, charCount, cursorPos }: Props) {
   const fk = formatKeybinding
 
   return (
@@ -80,9 +81,16 @@ export const StatusBar = memo(function StatusBar({ stats, eolInfo, wordCount, ch
           </span>
         )}
       </div>
-      <div className="flex items-center gap-1.5" style={{ color: 'var(--text-dim)' }}>
-        <kbd>{fk('Ctrl')}+K</kbd>
-        <span className="text-[11px]">commands</span>
+      <div className="flex items-center gap-3" style={{ color: 'var(--text-dim)' }}>
+        {cursorPos && (
+          <span style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>
+            Ln {cursorPos.line}, Col {cursorPos.col}
+          </span>
+        )}
+        <div className="flex items-center gap-1.5">
+          <kbd>{fk('Ctrl')}+K</kbd>
+          <span className="text-[11px]">commands</span>
+        </div>
       </div>
     </div>
   )

@@ -308,6 +308,7 @@ export function ThreeWayMode() {
   const mergeRef = useRef<editor.IStandaloneCodeEditor | null>(null)
   const monacoRef = useRef<Monaco | null>(null)
   const decoRefs = useRef<{ l?: editor.IEditorDecorationsCollection; b?: editor.IEditorDecorationsCollection; r?: editor.IEditorDecorationsCollection }>({})
+  const [remainingConflicts, setRemainingConflicts] = useState(0)
 
   // Recompute diff decorations whenever content changes
   useEffect(() => {
@@ -337,6 +338,7 @@ export function ThreeWayMode() {
     if (mergeRef.current) {
       const { lines } = computeMerge(baseLines, leftLines, rightLines, leftHunks, rightHunks)
       mergeRef.current.setValue(lines.join('\n'))
+      setRemainingConflicts(lines.filter((l) => l.startsWith('<<<<<<<')).length)
     }
   }, [leftText, baseText, rightText])
 
@@ -355,7 +357,13 @@ export function ThreeWayMode() {
     if (role === 'left') leftRef.current = ed
     else if (role === 'base') baseRef.current = ed
     else if (role === 'right') rightRef.current = ed
-    else mergeRef.current = ed
+    else {
+      mergeRef.current = ed
+      ed.onDidChangeModelContent(() => {
+        const count = ed.getValue().split('\n').filter((l) => l.startsWith('<<<<<<<')).length
+        setRemainingConflicts(count)
+      })
+    }
   }, [])
 
   const panels = [
@@ -454,10 +462,10 @@ export function ThreeWayMode() {
               <span style={{ fontSize: 11, fontWeight: 650, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', marginRight: 4 }}>
                 Merge Result
               </span>
-              {stats && stats.conflicts > 0 && (
+              {remainingConflicts > 0 && (
                 <>
                   <span style={{ fontSize: 11, color: 'var(--amber)', marginRight: 4 }}>
-                    {stats.conflicts} conflict{stats.conflicts !== 1 ? 's' : ''}
+                    {remainingConflicts} conflict{remainingConflicts !== 1 ? 's' : ''} remaining
                   </span>
                   <button className="btn outlined" style={{ fontSize: 11, height: 22, padding: '0 7px' }}
                     title="Jump to previous conflict"
@@ -532,7 +540,9 @@ export function ThreeWayMode() {
           {stats ? (
             <>
               {stats.conflicts > 0
-                ? <span style={{ color: 'var(--amber)' }}>{stats.conflicts} conflict line{stats.conflicts !== 1 ? 's' : ''}</span>
+                ? remainingConflicts > 0
+                  ? <span style={{ color: 'var(--amber)' }}>{remainingConflicts} / {stats.conflicts} conflict{stats.conflicts !== 1 ? 's' : ''} remaining</span>
+                  : <span style={{ color: 'var(--green)' }}>All conflicts resolved</span>
                 : <span style={{ color: 'var(--green)' }}>No conflicts</span>}
               <span style={{ color: 'var(--green)' }}>{stats.leftChanges} left change{stats.leftChanges !== 1 ? 's' : ''}</span>
               <span style={{ color: 'oklch(60% 0.18 240)' }}>{stats.rightChanges} right change{stats.rightChanges !== 1 ? 's' : ''}</span>

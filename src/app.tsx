@@ -90,6 +90,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
   const [eolInfo, setEolInfo] = useState<{ orig: string | null; mod: string | null }>({ orig: null, mod: null })
   const [wordCount, setWordCount] = useState<{ orig: number; mod: number }>({ orig: 0, mod: 0 })
   const [charCount, setCharCount] = useState<{ orig: number; mod: number }>({ orig: 0, mod: 0 })
+  const [cursorPos, setCursorPos] = useState<{ line: number; col: number } | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
 
@@ -573,6 +574,10 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
       refresh()
       scheduleRecentSave()
     })
+
+    ed.onDidChangeCursorPosition((e) => {
+      setCursorPos({ line: e.position.lineNumber, col: e.position.column })
+    })
   }, [tryDetect, refresh, scheduleRecentSave])
 
   const remeasureFonts = useCallback((monaco: Monaco) => {
@@ -843,7 +848,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
         </div>
       </main>
 
-      <StatusBar stats={stats} eolInfo={eolInfo} wordCount={wordCount} charCount={charCount} />
+      <StatusBar stats={stats} eolInfo={eolInfo} wordCount={wordCount} charCount={charCount} cursorPos={cursorPos} />
 
       {paletteOpen && <CommandPalette commands={commands} onClose={() => setPaletteOpen(false)} />}
       {shortcutsOpen && <KeyboardShortcuts onClose={() => setShortcutsOpen(false)} />}
