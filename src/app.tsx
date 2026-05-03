@@ -459,6 +459,16 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
     modEditorRef.current?.focus()
   }, [])
 
+  const copyOriginal = useCallback(async () => {
+    const text = origEditorRef.current?.getValue() ?? ''
+    if (text) await navigator.clipboard.writeText(text)
+  }, [])
+
+  const copyModified = useCallback(async () => {
+    const text = modEditorRef.current?.getValue() ?? ''
+    if (text) await navigator.clipboard.writeText(text)
+  }, [])
+
   // File drag-and-drop onto the editor area
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (!e.dataTransfer.types.includes('Files')) return
@@ -822,6 +832,8 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
           inline={inline}
           onLoadOriginal={loadOriginal}
           onLoadModified={loadModified}
+          onCopyOriginal={copyOriginal}
+          onCopyModified={copyModified}
         />
       )}
 
@@ -876,7 +888,11 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
         </div>
       </main>
 
-      <StatusBar stats={stats} eolInfo={eolInfo} wordCount={wordCount} charCount={charCount} cursorPos={cursorPos} diffNav={diffNav} />
+      <StatusBar
+        stats={stats} eolInfo={eolInfo} wordCount={wordCount} charCount={charCount}
+        cursorPos={cursorPos} diffNav={diffNav}
+        language={languages.find((l) => l.id === effectiveLang)?.label}
+      />
 
       {paletteOpen && <CommandPalette commands={commands} onClose={() => setPaletteOpen(false)} />}
       {shortcutsOpen && <KeyboardShortcuts onClose={() => setShortcutsOpen(false)} />}

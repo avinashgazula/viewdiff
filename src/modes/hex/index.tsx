@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ModeTabs } from '../../components/mode-tabs'
 import { useTheme } from '../../hooks/use-theme'
 import { MoonIcon, MonitorIcon, SunIcon } from '../../components/icons'
@@ -106,21 +106,28 @@ function HexRow({ offset, bytes, diffBytes, diffMask, side }: HexRowProps) {
   )
 }
 
-function VirtualHexDump({ diff, side, containerHeight, jumpToOffset }: {
+function VirtualHexDump({ diff, side, containerHeight, jumpToOffset, onContainerReady, onSyncScroll }: {
   diff: HexDiff
   side: 'left' | 'right'
   containerHeight: number
   jumpToOffset?: number
+  onContainerReady?: (el: HTMLDivElement) => void
+  onSyncScroll?: (top: number) => void
 }) {
   const [scrollTop, setScrollTop] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
   const bytes = side === 'left' ? diff.leftBytes : diff.rightBytes
 
   useEffect(() => {
+    if (containerRef.current && onContainerReady) onContainerReady(containerRef.current)
+  }, [onContainerReady])
+
+  useEffect(() => {
     if (jumpToOffset === undefined || jumpToOffset === null) return
     const row = Math.floor(jumpToOffset / BYTES_PER_ROW)
     if (containerRef.current) containerRef.current.scrollTop = row * ROW_HEIGHT
   }, [jumpToOffset])
+
   const totalRows = Math.ceil(Math.max(diff.totalLeft, diff.totalRight) / BYTES_PER_ROW)
 
   const buffer = 5
@@ -132,7 +139,11 @@ function VirtualHexDump({ diff, side, containerHeight, jumpToOffset }: {
     <div
       ref={containerRef}
       style={{ flex: 1, overflowY: 'auto', overflowX: 'auto' }}
-      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+      onScroll={(e) => {
+        const top = e.currentTarget.scrollTop
+        setScrollTop(top)
+        onSyncScroll?.(top)
+      }}
     >
       <div style={{ height: totalRows * ROW_HEIGHT, position: 'relative', minWidth: 520 }}>
         <div style={{ transform: `translateY(${offsetY}px)` }}>
@@ -169,6 +180,27 @@ function detectMime(bytes: Uint8Array): string {
   return 'Binary file'
 }
 
+function findBytes(haystack: Uint8Array, needle: Uint8Array): number {
+  if (needle.length === 0 || needle.length > haystack.length) return -1
+  outer: for (let i = 0; i <= haystack.length - needle.length; i++) {
+    for (let j = 0; j < needle.length; j++) {
+      if (haystack[i + j] !== needle[j]) continue outer
+    }
+    return i
+  }
+  return -1
+}
+
+function parseHexPattern(raw: string): Uint8Array | null {
+  const cleaned = raw.replace(/\s+/g, '').replace(/^0x/i, '')
+  if (!/^[0-9a-f]*$/i.test(cleaned) || cleaned.length % 2 !== 0 || cleaned.length === 0) return null
+  const bytes = new Uint8Array(cleaned.length / 2)
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(cleaned.slice(i * 2, i * 2 + 2), 16)
+  }
+  return bytes
+}
+
 export function HexMode() {
   const { mode: themeMode, toggle: toggleTheme } = useTheme()
   const [leftBytes, setLeftBytes] = useState<Uint8Array | null>(null)
@@ -182,6 +214,16 @@ export function HexMode() {
   const leftRef = useRef<HTMLDivElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
   const [paneHeight, setPaneHeight] = useState(400)
+  // Synchronized scroll
+  const syncContainersRef = useRef<{ left: HTMLDivElement | null; right: HTMLDivElement | null }>({ left: null, right: null })
+  const syncActiveRef = useRef(false)
+  const handleSyncScroll = useCallback((side: 'left' | 'right', top: number) => {
+    if (syncActiveRef.current) return
+    syncActiveRef.current = true
+    const other = side === 'left' ? syncContainersRef.current.right : syncContainersRef.current.left
+    if (other) other.scrollTop = top
+    syncActiveRef.current = false
+  }, [])
 
   useEffect(() => {
     const obs = new ResizeObserver((entries) => setPaneHeight(entries[0].contentRect.height))
@@ -290,22 +332,44 @@ export function HexMode() {
           {loading && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading...</span>}
           {error && <span style={{ fontSize: 12, color: 'var(--red)' }}>{error}</span>}
           {diff && (
-            <input
-              type="text"
-              placeholder="Jump to offset (hex)"
-              title="Type a hex offset (e.g. 0x1F4) and press Enter to scroll"
-              style={{
-                height: 26, padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: 11.5,
-                color: 'var(--text)', background: 'var(--surface-raised)',
-                border: '1px solid var(--border)', borderRadius: 6, outline: 'none', width: 150,
-              }}
-              onKeyDown={(e) => {
-                if (e.key !== 'Enter') return
-                const raw = e.currentTarget.value.trim().replace(/^0x/i, '')
-                const offset = parseInt(raw, 16)
-                if (!isNaN(offset)) setJumpOffset(offset)
-              }}
-            />
+            <>
+              <input
+                type="text"
+                placeholder="Jump to offset (hex)"
+                title="Type a hex offset (e.g. 0x1F4) and press Enter to scroll"
+                style={{
+                  height: 26, padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: 11.5,
+                  color: 'var(--text)', background: 'var(--surface-raised)',
+                  border: '1px solid var(--border)', borderRadius: 6, outline: 'none', width: 148,
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return
+                  const raw = e.currentTarget.value.trim().replace(/^0x/i, '')
+                  const offset = parseInt(raw, 16)
+                  if (!isNaN(offset)) setJumpOffset(offset)
+                }}
+              />
+              <input
+                type="text"
+                placeholder="Find bytes (hex)"
+                title="Type a hex byte pattern (e.g. FF D8 FF) and press Enter to find first match"
+                style={{
+                  height: 26, padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: 11.5,
+                  color: 'var(--text)', background: 'var(--surface-raised)',
+                  border: '1px solid var(--border)', borderRadius: 6, outline: 'none', width: 140,
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return
+                  const pattern = parseHexPattern(e.currentTarget.value)
+                  if (!pattern) { setError('Invalid hex pattern'); return }
+                  setError(null)
+                  const bytes = diff.leftBytes.length >= diff.rightBytes.length ? diff.leftBytes : diff.rightBytes
+                  const offset = findBytes(bytes, pattern)
+                  if (offset >= 0) setJumpOffset(offset)
+                  else setError('Pattern not found')
+                }}
+              />
+            </>
           )}
           <div className="divider" aria-hidden="true" />
           <button onClick={toggleTheme} className="btn icon">
@@ -328,14 +392,22 @@ export function HexMode() {
               <span>{leftFile?.name}</span>
               <span style={{ color: 'var(--text-dim)' }}>{leftBytes && detectMime(leftBytes)} · {leftFile && (leftFile.size / 1024).toFixed(1)} KB</span>
             </div>
-            <VirtualHexDump diff={diff} side="left" containerHeight={paneHeight} jumpToOffset={jumpOffset} />
+            <VirtualHexDump
+              diff={diff} side="left" containerHeight={paneHeight} jumpToOffset={jumpOffset}
+              onContainerReady={(el) => { syncContainersRef.current.left = el }}
+              onSyncScroll={(top) => handleSyncScroll('left', top)}
+            />
           </div>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <div style={{ padding: '4px 12px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', fontSize: 11.5, color: 'var(--text-secondary)', flexShrink: 0, display: 'flex', justifyContent: 'space-between' }}>
               <span>{rightFile?.name}</span>
               <span style={{ color: 'var(--text-dim)' }}>{rightBytes && detectMime(rightBytes)} · {rightFile && (rightFile.size / 1024).toFixed(1)} KB</span>
             </div>
-            <VirtualHexDump diff={diff} side="right" containerHeight={paneHeight} jumpToOffset={jumpOffset} />
+            <VirtualHexDump
+              diff={diff} side="right" containerHeight={paneHeight} jumpToOffset={jumpOffset}
+              onContainerReady={(el) => { syncContainersRef.current.right = el }}
+              onSyncScroll={(top) => handleSyncScroll('right', top)}
+            />
           </div>
         </div>
       )}
