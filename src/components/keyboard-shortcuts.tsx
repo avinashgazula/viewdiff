@@ -17,7 +17,7 @@ const GROUPS: ShortcutGroup[] = [
       { keys: 'Ctrl+K', label: 'Open command palette' },
       { keys: 'Ctrl+,', label: 'Open settings' },
       { keys: 'Ctrl+?', label: 'Keyboard shortcuts' },
-    { keys: 'Ctrl+G', label: 'Go to line' },
+      { keys: 'Ctrl+G', label: 'Go to line' },
       { keys: 'Ctrl+J', label: 'Cycle theme' },
       { keys: 'Alt+1–7', label: 'Navigate modes' },
     ],
@@ -49,6 +49,15 @@ const GROUPS: ShortcutGroup[] = [
       { keys: 'Ctrl+E', label: 'Export as .patch file' },
       { keys: 'Ctrl+Shift+E', label: 'Export as HTML diff' },
       { keys: 'Ctrl+P', label: 'Print diff' },
+    ],
+  },
+  {
+    title: 'Three-way merge',
+    items: [
+      { keys: 'Ctrl+Alt+↓', label: 'Next conflict' },
+      { keys: 'Ctrl+Alt+↑', label: 'Previous conflict' },
+      { keys: 'Ctrl+Shift+L', label: 'Accept left at cursor' },
+      { keys: 'Ctrl+Shift+R', label: 'Accept right at cursor' },
     ],
   },
 ]

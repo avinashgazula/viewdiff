@@ -56,6 +56,7 @@ export function GitMode() {
   const [selectedFile, setSelectedFile] = useState(0)
   const [inputVisible, setInputVisible] = useState(true)
   const [shareCopied, setShareCopied] = useState(false)
+  const [fileFilter, setFileFilter] = useState('')
 
   // Load from URL on mount
   useEffect(() => {
@@ -188,25 +189,44 @@ export function GitMode() {
         <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
           {/* File list sidebar — keyboard navigable */}
           <div
+            style={{
+              width: 260, flexShrink: 0, borderRight: '1px solid var(--border)',
+              display: 'flex', flexDirection: 'column', background: 'var(--surface)',
+            }}
+          >
+            <div style={{ padding: '6px 8px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+              <input
+                type="search"
+                value={fileFilter}
+                onChange={(e) => setFileFilter(e.target.value)}
+                placeholder="Filter files…"
+                aria-label="Filter changed files"
+                style={{
+                  width: '100%', height: 26, padding: '0 8px', boxSizing: 'border-box',
+                  fontFamily: 'var(--font-mono)', fontSize: 11.5,
+                  color: 'var(--text)', background: 'var(--surface-raised)',
+                  border: '1px solid var(--border)', borderRadius: 6, outline: 'none',
+                }}
+              />
+            </div>
+          <div
             role="listbox"
             aria-label="Changed files"
             tabIndex={0}
-            style={{
-              width: 260, flexShrink: 0, borderRight: '1px solid var(--border)',
-              overflowY: 'auto', background: 'var(--surface)', outline: 'none',
-            }}
+            style={{ flex: 1, overflowY: 'auto', outline: 'none' }}
             onKeyDown={(e) => {
               if (!parsed) return
+              const visible = parsed.files.filter((f) => !fileFilter || (f.newPath || f.oldPath).toLowerCase().includes(fileFilter.toLowerCase()))
               if (e.key === 'ArrowDown') {
                 e.preventDefault()
-                setSelectedFile((i) => Math.min(i + 1, parsed.files.length - 1))
+                setSelectedFile((i) => Math.min(i + 1, visible.length - 1))
               } else if (e.key === 'ArrowUp') {
                 e.preventDefault()
                 setSelectedFile((i) => Math.max(i - 1, 0))
               } else if (e.key === 'Home') {
                 e.preventDefault(); setSelectedFile(0)
               } else if (e.key === 'End') {
-                e.preventDefault(); setSelectedFile(parsed.files.length - 1)
+                e.preventDefault(); setSelectedFile(visible.length - 1)
               }
             }}
           >
@@ -220,7 +240,7 @@ export function GitMode() {
                 )}
               </div>
             )}
-            {parsed.files.map((file, idx) => {
+            {parsed.files.filter((f) => !fileFilter || (f.newPath || f.oldPath).toLowerCase().includes(fileFilter.toLowerCase())).map((file, idx) => {
               const displayPath = file.newPath || file.oldPath
               const parts = displayPath.split('/')
               const filename = parts.pop() ?? displayPath
@@ -264,6 +284,7 @@ export function GitMode() {
                 </button>
               )
             })}
+          </div>
           </div>
 
           {/* Diff viewer */}
