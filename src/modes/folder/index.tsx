@@ -23,6 +23,8 @@ interface DiffEntry {
   rightModified: number | null
   leftFile: File | null
   rightFile: File | null
+  leftHash: string | null
+  rightHash: string | null
 }
 
 function formatRelativeTime(ms: number): string {
@@ -101,6 +103,7 @@ export function FolderMode() {
   const [rightName, setRightName] = useState('')
   const [sortKey, setSortKey] = useState<'name' | 'status' | 'leftSize' | 'rightSize' | 'delta'>('status')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [selectedEntry, setSelectedEntry] = useState<DiffEntry | null>(null)
 
   function loadFiles(side: 'left' | 'right', files: FileList) {
     const map = new Map<string, File>()
@@ -136,11 +139,13 @@ export function FolderMode() {
         const rFile = rightFiles.get(path) ?? null
 
         let status: FileStatus
+        let lHash: string | null = null
+        let rHash: string | null = null
         if (!lFile) status = 'right-only'
         else if (!rFile) status = 'left-only'
         else {
           if (lFile.size === rFile.size) {
-            const [lHash, rHash] = await Promise.all([hashFile(lFile), hashFile(rFile)])
+            ;[lHash, rHash] = await Promise.all([hashFile(lFile), hashFile(rFile)])
             status = lHash === rHash ? 'same' : 'different'
           } else {
             status = 'different'
@@ -156,6 +161,8 @@ export function FolderMode() {
           rightModified: rFile?.lastModified ?? null,
           leftFile: lFile,
           rightFile: rFile,
+          leftHash: lHash,
+          rightHash: rHash,
         })
 
         done++
@@ -229,6 +236,107 @@ export function FolderMode() {
   })()
 
   const hasData = leftFiles.size > 0 || rightFiles.size > 0
+
+  function FileDetailPanel({ entry, onClose }: { entry: DiffEntry; onClose: () => void }) {
+    const hashMatch = entry.leftHash !== null && entry.rightHash !== null
+    const hashEqual = hashMatch && entry.leftHash === entry.rightHash
+    const ext = entry.path.includes('.') ? entry.path.split('.').pop()?.toLowerCase() ?? '' : ''
+    const baseName = entry.path.split('/').pop() ?? entry.path
+    const dirName = entry.path.includes('/') ? entry.path.split('/').slice(0, -1).join('/') : ''
+
+    return (
+      <div style={{
+        width: 272, flexShrink: 0, borderLeft: '1px solid var(--border)',
+        background: 'var(--surface)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      }}>
+        <div style={{
+          padding: '8px 12px', borderBottom: '1px solid var(--border)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0,
+        }}>
+          <span style={{ fontSize: 11, fontWeight: 650, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-dim)' }}>Details</span>
+          <button
+            className="btn icon"
+            style={{ width: 20, height: 20, fontSize: 14, opacity: 0.6 }}
+            onClick={onClose}
+            aria-label="Close detail panel"
+          >×</button>
+        </div>
+        <div style={{ flex: 1, overflow: 'auto', padding: '12px' }}>
+          <div style={{ marginBottom: 12 }}>
+            {dirName && <div style={{ fontSize: 10.5, color: 'var(--text-dim)', marginBottom: 2, fontFamily: 'var(--font-mono)' }}>{dirName}/</div>}
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)', wordBreak: 'break-all' }}>{baseName}</div>
+            {ext && <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>.{ext} file</div>}
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <StatusBadge status={entry.status} />
+            <span style={{ fontSize: 12, marginLeft: 6, color: 'var(--text-muted)' }}>
+              {entry.status === 'same' ? 'Identical' : entry.status === 'different' ? 'Changed' : entry.status === 'left-only' ? 'Left only' : 'Right only'}
+            </span>
+          </div>
+
+          {(entry.leftFile || entry.rightFile) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+              {(['left', 'right'] as const).map((side) => {
+                const file = side === 'left' ? entry.leftFile : entry.rightFile
+                const size = side === 'left' ? entry.leftSize : entry.rightSize
+                const mod = side === 'left' ? entry.leftModified : entry.rightModified
+                const hash = side === 'left' ? entry.leftHash : entry.rightHash
+                if (size === null && mod === null) return null
+                return (
+                  <div key={side} style={{ background: 'var(--surface-raised)', borderRadius: 6, padding: '8px 10px', fontSize: 11.5 }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text-dim)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>{side}</div>
+                    {size !== null && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>Size</span><span style={{ fontFamily: 'var(--font-mono)' }}>{formatSize(size)}</span></div>}
+                    {mod !== null && <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}><span style={{ color: 'var(--text-muted)' }}>Modified</span><span title={new Date(mod).toLocaleString()}>{formatRelativeTime(mod)}</span></div>}
+                    {hash && (
+                      <div style={{ marginTop: 5, paddingTop: 5, borderTop: '1px solid var(--border)' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>SHA-256</span>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-dim)', marginTop: 2, wordBreak: 'break-all' }}>{hash.slice(0, 16)}…</div>
+                      </div>
+                    )}
+                    {file && (
+                      <button
+                        className="btn outlined"
+                        style={{ marginTop: 6, fontSize: 10.5, height: 22, padding: '0 7px', width: '100%' }}
+                        onClick={() => {
+                          const a = document.createElement('a')
+                          a.href = URL.createObjectURL(file)
+                          a.download = file.name
+                          a.click()
+                          URL.revokeObjectURL(a.href)
+                        }}
+                      >↓ Download</button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {hashMatch && (
+            <div style={{
+              padding: '6px 10px', borderRadius: 6, fontSize: 11.5, marginBottom: 12,
+              background: hashEqual ? 'var(--green-bg)' : 'var(--red-bg)',
+              color: hashEqual ? 'var(--green)' : 'var(--red)',
+              border: `1px solid ${hashEqual ? 'var(--green)' : 'var(--red)'}`,
+            }}>
+              {hashEqual ? '✓ Hashes match' : '✗ Hashes differ'}
+            </div>
+          )}
+
+          {entry.status === 'different' && entry.leftFile && entry.rightFile && (
+            <button
+              className="btn"
+              style={{ width: '100%', fontSize: 12, height: 30 }}
+              onClick={() => openTextDiff(entry)}
+            >
+              Open diff →
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   function DropZone({ side }: { side: 'left' | 'right' }) {
     const [drag, setDrag] = useState(false)
@@ -392,72 +500,86 @@ export function FolderMode() {
             <div />
           </div>
 
-          {/* File list */}
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-            {filtered.length === 0 && !computing && (
-              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                No files match this filter
-              </div>
-            )}
-            {filtered.map((entry) => {
-              const delta = sizeDelta(entry.leftSize, entry.rightSize)
-              return (
-                <div
-                  key={entry.path}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '24px 1fr 80px 80px 72px 80px 80px',
-                    padding: '6px 16px',
-                    borderBottom: '1px solid var(--border-subtle)',
-                    alignItems: 'center',
-                    fontSize: 13,
-                    background: entry.status === 'different' ? 'oklch(95% 0.02 80 / 0.4)'
-                      : entry.status === 'left-only' ? 'var(--red-bg)'
-                      : entry.status === 'right-only' ? 'var(--green-bg)'
-                      : 'transparent',
-                  }}
-                >
-                  <StatusBadge status={entry.status} />
-                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                    {entry.path}
-                  </div>
-                  <div
-                    style={{ textAlign: 'right', fontSize: 11.5, color: 'var(--text-muted)' }}
-                    title={entry.leftModified != null ? `Modified ${formatRelativeTime(entry.leftModified)}` : undefined}
-                  >
-                    {entry.leftSize !== null ? formatSize(entry.leftSize) : '—'}
-                  </div>
-                  <div
-                    style={{ textAlign: 'right', fontSize: 11.5, color: 'var(--text-muted)' }}
-                    title={entry.rightModified != null ? `Modified ${formatRelativeTime(entry.rightModified)}` : undefined}
-                  >
-                    {entry.rightSize !== null ? formatSize(entry.rightSize) : '—'}
-                  </div>
-                  <div style={{ textAlign: 'right', fontSize: 11, color: delta ? (delta.startsWith('+') ? 'var(--green)' : 'var(--red)') : 'var(--text-dim)' }}>
-                    {delta ?? (entry.leftSize !== null && entry.rightSize !== null ? '=' : '—')}
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-                      {entry.status === 'same' ? 'Identical'
-                        : entry.status === 'different' ? 'Changed'
-                        : entry.status === 'left-only' ? 'Left only'
-                        : 'Right only'}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    {entry.status === 'different' && entry.leftFile && entry.rightFile && (
-                      <button
-                        className="btn outlined"
-                        style={{ fontSize: 11, height: 24, padding: '0 8px' }}
-                        onClick={() => openTextDiff(entry)}
-                      >
-                        Diff
-                      </button>
-                    )}
-                  </div>
+          {/* File list + detail panel */}
+          <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+              {filtered.length === 0 && !computing && (
+                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                  No files match this filter
                 </div>
-              )
-            })}
+              )}
+              {filtered.map((entry) => {
+                const delta = sizeDelta(entry.leftSize, entry.rightSize)
+                const isSelected = selectedEntry?.path === entry.path
+                return (
+                  <div
+                    key={entry.path}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedEntry(isSelected ? null : entry)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedEntry(isSelected ? null : entry) }}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '24px 1fr 80px 80px 72px 80px 80px',
+                      padding: '6px 16px',
+                      borderBottom: '1px solid var(--border-subtle)',
+                      alignItems: 'center',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      outline: 'none',
+                      background: isSelected ? 'var(--accent-subtle)'
+                        : entry.status === 'different' ? 'oklch(95% 0.02 80 / 0.4)'
+                        : entry.status === 'left-only' ? 'var(--red-bg)'
+                        : entry.status === 'right-only' ? 'var(--green-bg)'
+                        : 'transparent',
+                      borderLeft: isSelected ? '2px solid var(--accent)' : '2px solid transparent',
+                    }}
+                  >
+                    <StatusBadge status={entry.status} />
+                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                      {entry.path}
+                    </div>
+                    <div
+                      style={{ textAlign: 'right', fontSize: 11.5, color: 'var(--text-muted)' }}
+                      title={entry.leftModified != null ? `Modified ${formatRelativeTime(entry.leftModified)}` : undefined}
+                    >
+                      {entry.leftSize !== null ? formatSize(entry.leftSize) : '—'}
+                    </div>
+                    <div
+                      style={{ textAlign: 'right', fontSize: 11.5, color: 'var(--text-muted)' }}
+                      title={entry.rightModified != null ? `Modified ${formatRelativeTime(entry.rightModified)}` : undefined}
+                    >
+                      {entry.rightSize !== null ? formatSize(entry.rightSize) : '—'}
+                    </div>
+                    <div style={{ textAlign: 'right', fontSize: 11, color: delta ? (delta.startsWith('+') ? 'var(--green)' : 'var(--red)') : 'var(--text-dim)' }}>
+                      {delta ?? (entry.leftSize !== null && entry.rightSize !== null ? '=' : '—')}
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                        {entry.status === 'same' ? 'Identical'
+                          : entry.status === 'different' ? 'Changed'
+                          : entry.status === 'left-only' ? 'Left only'
+                          : 'Right only'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      {entry.status === 'different' && entry.leftFile && entry.rightFile && (
+                        <button
+                          className="btn outlined"
+                          style={{ fontSize: 11, height: 24, padding: '0 8px' }}
+                          onClick={(e) => { e.stopPropagation(); openTextDiff(entry) }}
+                        >
+                          Diff
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {selectedEntry && (
+              <FileDetailPanel entry={selectedEntry} onClose={() => setSelectedEntry(null)} />
+            )}
           </div>
         </div>
       )}

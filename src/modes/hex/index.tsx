@@ -255,6 +255,7 @@ export function HexMode() {
   const [error, setError] = useState<string | null>(null)
   const [jumpOffset, setJumpOffset] = useState<number | undefined>(undefined)
   const [diffRegionIdx, setDiffRegionIdx] = useState(0)
+  const [showStats, setShowStats] = useState(false)
   const leftRef = useRef<HTMLDivElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
   const [paneHeight, setPaneHeight] = useState(400)
@@ -320,6 +321,28 @@ export function HexMode() {
   }, [diff])
 
   const diffRegions = useMemo(() => (diff ? getDiffRegions(diff.diffMask) : []), [diff])
+
+  const byteStats = useMemo(() => {
+    if (!diff) return null
+    function categorize(bytes: Uint8Array) {
+      let nullB = 0, control = 0, printable = 0, high = 0
+      const freq = new Uint32Array(256)
+      for (let i = 0; i < bytes.length; i++) {
+        const b = bytes[i]
+        freq[b]++
+        if (b === 0) nullB++
+        else if (b < 32) control++
+        else if (b < 128) printable++
+        else high++
+      }
+      const top5 = Array.from({ length: 256 }, (_, i) => ({ byte: i, count: freq[i] }))
+        .filter((x) => x.count > 0)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5)
+      return { null: nullB, control, printable, high, total: bytes.length, top5 }
+    }
+    return { left: categorize(diff.leftBytes), right: categorize(diff.rightBytes) }
+  }, [diff])
 
   const jumpToDiffRegion = useCallback((idx: number) => {
     const clamped = (idx + diffRegions.length) % diffRegions.length
@@ -482,6 +505,14 @@ export function HexMode() {
                   </button>
                 </>
               )}
+              <button
+                className={`btn outlined${showStats ? ' active' : ''}`}
+                style={{ fontSize: 11, height: 26, padding: '0 8px' }}
+                title="Toggle byte statistics"
+                onClick={() => setShowStats((s) => !s)}
+              >
+                Stats
+              </button>
             </>
           )}
           <div className="divider" aria-hidden="true" />
@@ -499,29 +530,79 @@ export function HexMode() {
           <FileDropZone side="right" />
         </div>
       ) : (
-        <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-          <div ref={leftRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border)', minHeight: 0 }}>
-            <div style={{ padding: '4px 12px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', fontSize: 11.5, color: 'var(--text-secondary)', flexShrink: 0, display: 'flex', justifyContent: 'space-between' }}>
-              <span>{leftFile?.name}</span>
-              <span style={{ color: 'var(--text-dim)' }}>{leftBytes && detectMime(leftBytes)} · {leftFile && (leftFile.size / 1024).toFixed(1)} KB</span>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+            <div ref={leftRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border)', minHeight: 0 }}>
+              <div style={{ padding: '4px 12px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', fontSize: 11.5, color: 'var(--text-secondary)', flexShrink: 0, display: 'flex', justifyContent: 'space-between' }}>
+                <span>{leftFile?.name}</span>
+                <span style={{ color: 'var(--text-dim)' }}>{leftBytes && detectMime(leftBytes)} · {leftFile && (leftFile.size / 1024).toFixed(1)} KB</span>
+              </div>
+              <VirtualHexDump
+                diff={diff} side="left" containerHeight={paneHeight} jumpToOffset={jumpOffset}
+                onContainerReady={(el) => { syncContainersRef.current.left = el }}
+                onSyncScroll={(top) => handleSyncScroll('left', top)}
+              />
             </div>
-            <VirtualHexDump
-              diff={diff} side="left" containerHeight={paneHeight} jumpToOffset={jumpOffset}
-              onContainerReady={(el) => { syncContainersRef.current.left = el }}
-              onSyncScroll={(top) => handleSyncScroll('left', top)}
-            />
-          </div>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <div style={{ padding: '4px 12px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', fontSize: 11.5, color: 'var(--text-secondary)', flexShrink: 0, display: 'flex', justifyContent: 'space-between' }}>
-              <span>{rightFile?.name}</span>
-              <span style={{ color: 'var(--text-dim)' }}>{rightBytes && detectMime(rightBytes)} · {rightFile && (rightFile.size / 1024).toFixed(1)} KB</span>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              <div style={{ padding: '4px 12px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', fontSize: 11.5, color: 'var(--text-secondary)', flexShrink: 0, display: 'flex', justifyContent: 'space-between' }}>
+                <span>{rightFile?.name}</span>
+                <span style={{ color: 'var(--text-dim)' }}>{rightBytes && detectMime(rightBytes)} · {rightFile && (rightFile.size / 1024).toFixed(1)} KB</span>
+              </div>
+              <VirtualHexDump
+                diff={diff} side="right" containerHeight={paneHeight} jumpToOffset={jumpOffset}
+                onContainerReady={(el) => { syncContainersRef.current.right = el }}
+                onSyncScroll={(top) => handleSyncScroll('right', top)}
+              />
             </div>
-            <VirtualHexDump
-              diff={diff} side="right" containerHeight={paneHeight} jumpToOffset={jumpOffset}
-              onContainerReady={(el) => { syncContainersRef.current.right = el }}
-              onSyncScroll={(top) => handleSyncScroll('right', top)}
-            />
           </div>
+          {showStats && byteStats && (
+            <div style={{
+              flexShrink: 0, borderTop: '1px solid var(--border)', background: 'var(--surface)',
+              padding: '10px 16px', display: 'flex', gap: 32, overflowX: 'auto', fontSize: 12,
+            }}>
+              {(['left', 'right'] as const).map((side) => {
+                const s = byteStats[side]
+                const categories = [
+                  { label: 'Null (0x00)', value: s.null, color: 'var(--text-dim)' },
+                  { label: 'Control (0x01–1F)', value: s.control, color: 'var(--amber)' },
+                  { label: 'Printable ASCII', value: s.printable, color: 'var(--green)' },
+                  { label: 'High bytes (≥80)', value: s.high, color: 'var(--blue, var(--accent))' },
+                ]
+                return (
+                  <div key={side} style={{ minWidth: 220 }}>
+                    <div style={{ fontWeight: 650, fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', marginBottom: 8 }}>
+                      {side} — {s.total.toLocaleString()} bytes
+                    </div>
+                    {categories.map(({ label, value, color }) => (
+                      <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <div style={{ width: 130, fontSize: 11, color: 'var(--text-muted)' }}>{label}</div>
+                        <div style={{ flex: 1, height: 8, background: 'var(--surface-raised)', borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{ width: `${(value / s.total) * 100}%`, height: '100%', background: color, borderRadius: 4 }} />
+                        </div>
+                        <div style={{ width: 38, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--text-muted)' }}>
+                          {((value / s.total) * 100).toFixed(1)}%
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 6 }}>
+                      <div style={{ fontSize: 10.5, color: 'var(--text-dim)', marginBottom: 4, fontWeight: 600 }}>Top bytes</div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {s.top5.map(({ byte, count }) => (
+                          <span key={byte} style={{
+                            fontFamily: 'var(--font-mono)', fontSize: 10.5,
+                            background: 'var(--surface-raised)', borderRadius: 4, padding: '1px 5px',
+                            color: 'var(--text-secondary)', border: '1px solid var(--border)',
+                          }} title={`0x${byte.toString(16).toUpperCase().padStart(2,'0')} = ${count} occurrences`}>
+                            {byte.toString(16).toUpperCase().padStart(2,'0')} ({count})
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
