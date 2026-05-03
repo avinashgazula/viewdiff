@@ -663,10 +663,16 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
 
     wireEditor(orig, 'original')
     wireEditor(mod, 'modified')
+    let firstDiffScrolled = false
     de.onDidUpdateDiff(() => {
       const changes = de.getLineChanges() ?? []
       setDiffNav(changes.length > 0 ? { index: 0, total: changes.length } : null)
       refresh()
+      if (!firstDiffScrolled && changes.length > 0) {
+        firstDiffScrolled = true
+        const firstLine = changes[0].modifiedStartLineNumber
+        mod.revealLineInCenterIfOutsideViewport(firstLine)
+      }
     })
 
     // Load initial content (from shared URL)

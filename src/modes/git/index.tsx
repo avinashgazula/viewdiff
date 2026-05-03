@@ -139,6 +139,13 @@ export function GitMode() {
               </button>
               <button
                 className="btn outlined"
+                title="Download complete patch as .patch file"
+                onClick={() => downloadText(patchText, 'changes.patch')}
+              >
+                Download
+              </button>
+              <button
+                className="btn outlined"
                 onClick={sharePatch}
                 title="Copy shareable link"
               >
