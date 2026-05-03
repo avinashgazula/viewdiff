@@ -3,6 +3,7 @@ import { ModeTabs } from '../../components/mode-tabs'
 import { useTheme } from '../../hooks/use-theme'
 import { MoonIcon, MonitorIcon, SunIcon } from '../../components/icons'
 import { downloadText } from '../../export'
+import { encodeDiff } from '../../share'
 
 type FileStatus = 'same' | 'different' | 'left-only' | 'right-only'
 
@@ -98,6 +99,8 @@ export function FolderMode() {
   const [extFilter, setExtFilter] = useState('')
   const [leftName, setLeftName] = useState('')
   const [rightName, setRightName] = useState('')
+  const [sortKey, setSortKey] = useState<'name' | 'status' | 'leftSize' | 'rightSize' | 'delta'>('status')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
   function loadFiles(side: 'left' | 'right', files: FileList) {
     const map = new Map<string, File>()
@@ -182,9 +185,9 @@ export function FolderMode() {
       r.onload = (e) => res(e.target?.result as string)
       r.readAsText(f)
     })
-    Promise.all([readFile(entry.leftFile), readFile(entry.rightFile)]).then(([l, r]) => {
-      const encoded = btoa(encodeURIComponent(JSON.stringify({ o: l, m: r })))
-      window.open(`/?inline=1#data=${encoded}`, '_blank')
+    Promise.all([readFile(entry.leftFile), readFile(entry.rightFile)]).then(async ([l, r]) => {
+      const encoded = await encodeDiff(l, r)
+      window.open(`${window.location.origin}/?d=${encodeURIComponent(encoded)}`, '_blank')
     })
   }
 
@@ -196,13 +199,34 @@ export function FolderMode() {
     same: diffEntries.filter((e) => e.status === 'same').length,
   }
 
+  const handleSortClick = useCallback((key: typeof sortKey) => {
+    if (sortKey === key) setSortDir((d) => d === 'asc' ? 'desc' : 'asc')
+    else { setSortKey(key); setSortDir('asc') }
+  }, [sortKey])
+
   const byStatus = filter === 'all' ? diffEntries : diffEntries.filter((e) => e.status === filter)
-  const filtered = extFilter.trim()
-    ? (() => {
-        const exts = extFilter.split(',').map((x) => x.trim().replace(/^\*/, '').toLowerCase()).filter(Boolean)
-        return byStatus.filter((e) => exts.some((ext) => e.path.toLowerCase().endsWith(ext)))
-      })()
-    : byStatus
+  const filtered = (() => {
+    const byExt = extFilter.trim()
+      ? (() => {
+          const exts = extFilter.split(',').map((x) => x.trim().replace(/^\*/, '').toLowerCase()).filter(Boolean)
+          return byStatus.filter((e) => exts.some((ext) => e.path.toLowerCase().endsWith(ext)))
+        })()
+      : byStatus
+    const statusOrder: Record<FileStatus, number> = { different: 0, 'left-only': 1, 'right-only': 2, same: 3 }
+    return [...byExt].sort((a, b) => {
+      let cmp = 0
+      if (sortKey === 'name') cmp = a.path.localeCompare(b.path)
+      else if (sortKey === 'status') cmp = statusOrder[a.status] - statusOrder[b.status] || a.path.localeCompare(b.path)
+      else if (sortKey === 'leftSize') cmp = (a.leftSize ?? -1) - (b.leftSize ?? -1)
+      else if (sortKey === 'rightSize') cmp = (a.rightSize ?? -1) - (b.rightSize ?? -1)
+      else if (sortKey === 'delta') {
+        const da = (a.leftSize !== null && a.rightSize !== null) ? a.rightSize - a.leftSize : 0
+        const db = (b.leftSize !== null && b.rightSize !== null) ? b.rightSize - b.leftSize : 0
+        cmp = da - db
+      }
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+  })()
 
   const hasData = leftFiles.size > 0 || rightFiles.size > 0
 
@@ -346,11 +370,25 @@ export function FolderMode() {
             flexShrink: 0,
           }}>
             <div />
-            <div>File</div>
-            <div style={{ textAlign: 'right' }}>Left size</div>
-            <div style={{ textAlign: 'right' }}>Right size</div>
-            <div style={{ textAlign: 'right' }}>Delta</div>
-            <div style={{ textAlign: 'center' }}>Status</div>
+            {([
+              { key: 'name' as const, label: 'File', align: 'left' },
+              { key: 'leftSize' as const, label: 'Left size', align: 'right' },
+              { key: 'rightSize' as const, label: 'Right size', align: 'right' },
+              { key: 'delta' as const, label: 'Delta', align: 'right' },
+              { key: 'status' as const, label: 'Status', align: 'center' },
+            ] as const).map(({ key, label, align }) => (
+              <div
+                key={key}
+                role="button"
+                tabIndex={0}
+                style={{ textAlign: align as any, cursor: 'pointer', userSelect: 'none', color: sortKey === key ? 'var(--accent)' : undefined }}
+                onClick={() => handleSortClick(key)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSortClick(key) }}
+                aria-sort={sortKey === key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+              >
+                {label}{sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+              </div>
+            ))}
             <div />
           </div>
 

@@ -3,7 +3,7 @@ import { ModeTabs } from '../../components/mode-tabs'
 import { useTheme } from '../../hooks/use-theme'
 import { MoonIcon, MonitorIcon, SunIcon } from '../../components/icons'
 
-type OverlayMode = 'side-by-side' | 'blend' | 'difference' | 'highlight'
+type OverlayMode = 'side-by-side' | 'blend' | 'difference' | 'highlight' | 'swipe'
 
 interface ImageInfo {
   file: File
@@ -244,7 +244,9 @@ export function ImageMode() {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [loading, setLoading] = useState(false)
   const [pixelInfo, setPixelInfo] = useState<{ x: number; y: number; r: number; g: number; b: number; a: number } | null>(null)
+  const [swipePos, setSwipePos] = useState(50)
   const blendCanvasRef = useRef<HTMLCanvasElement>(null)
+  const swipeContainerRef = useRef<HTMLDivElement>(null)
 
   async function handleFile(side: 'left' | 'right', file: File) {
     setLoading(true)
@@ -307,14 +309,14 @@ export function ImageMode() {
           <span className="toolbar-subtitle">compare anything</span>
         </div>
         <div className="toolbar-controls">
-          {(['side-by-side', 'blend', 'difference', 'highlight'] as OverlayMode[]).map((m) => (
+          {(['side-by-side', 'swipe', 'blend', 'difference', 'highlight'] as OverlayMode[]).map((m) => (
             <button
               key={m}
               className={`btn outlined ${overlayMode === m ? 'active' : ''}`}
               onClick={() => setOverlayMode(m)}
               disabled={!hasBoth}
             >
-              {m === 'side-by-side' ? 'Side by side' : m.charAt(0).toUpperCase() + m.slice(1)}
+              {m === 'side-by-side' ? 'Side by side' : m === 'swipe' ? 'Swipe' : m.charAt(0).toUpperCase() + m.slice(1)}
             </button>
           ))}
 
@@ -389,7 +391,35 @@ export function ImageMode() {
       ) : (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-            {overlayMode === 'blend' ? (
+            {overlayMode === 'swipe' && leftImage && rightImage ? (
+              <div
+                ref={swipeContainerRef}
+                style={{ flex: 1, position: 'relative', overflow: 'hidden', userSelect: 'none', cursor: 'col-resize' }}
+                onMouseMove={(e) => {
+                  if (e.buttons !== 1) return
+                  const rect = swipeContainerRef.current?.getBoundingClientRect()
+                  if (!rect) return
+                  setSwipePos(Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)))
+                }}
+                onMouseDown={(e) => {
+                  const rect = swipeContainerRef.current?.getBoundingClientRect()
+                  if (!rect) return
+                  setSwipePos(Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)))
+                }}
+              >
+                <img src={leftImage.url} alt="Original" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} />
+                <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', width: `${swipePos}%` }}>
+                  <img src={rightImage.url} alt="Modified" style={{ width: swipeContainerRef.current?.offsetWidth ?? 800, height: '100%', objectFit: 'contain', objectPosition: 'left' }} />
+                </div>
+                <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${swipePos}%`, width: 2, background: 'var(--accent)', transform: 'translateX(-50%)', pointerEvents: 'none' }}>
+                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 24, height: 24, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'white', fontWeight: 700 }}>
+                    ⇔
+                  </div>
+                </div>
+                <div style={{ position: 'absolute', top: 8, left: 8, background: 'var(--surface)', borderRadius: 4, padding: '2px 6px', fontSize: 10.5, fontWeight: 650, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', border: '1px solid var(--border)' }}>Original</div>
+                <div style={{ position: 'absolute', top: 8, right: 8, background: 'var(--surface)', borderRadius: 4, padding: '2px 6px', fontSize: 10.5, fontWeight: 650, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', border: '1px solid var(--border)' }}>Modified</div>
+              </div>
+            ) : overlayMode === 'blend' ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                 <canvas
                   ref={blendCanvasRef}
