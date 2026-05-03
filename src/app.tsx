@@ -19,6 +19,7 @@ import { encodeDiff, buildShareUrl } from './share'
 import { generatePatch, generateHtmlDiff, downloadText } from './export'
 import { useRecent } from './hooks/use-recent'
 import { KeyboardShortcuts } from './components/keyboard-shortcuts'
+import { GoToLine } from './components/goto-line'
 
 const LazyDiffEditor = lazy(() =>
   import('@monaco-editor/react').then((m) => ({ default: m.DiffEditor }))
@@ -91,6 +92,9 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
   const [wordCount, setWordCount] = useState<{ orig: number; mod: number }>({ orig: 0, mod: 0 })
   const [charCount, setCharCount] = useState<{ orig: number; mod: number }>({ orig: 0, mod: 0 })
   const [cursorPos, setCursorPos] = useState<{ line: number; col: number } | null>(null)
+  const [diffNav, setDiffNav] = useState<{ index: number; total: number } | null>(null)
+  const [gotoLineOpen, setGotoLineOpen] = useState(false)
+  const [focusedEditor, setFocusedEditor] = useState<'original' | 'modified'>('modified')
   const [isDragging, setIsDragging] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
 
@@ -575,8 +579,25 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
       scheduleRecentSave()
     })
 
+    ed.onDidFocusEditorWidget(() => {
+      setFocusedEditor(which)
+    })
+
     ed.onDidChangeCursorPosition((e) => {
       setCursorPos({ line: e.position.lineNumber, col: e.position.column })
+      if (which === 'modified') {
+        const de = diffEditorRef.current
+        if (!de) return
+        const changes = de.getLineChanges() ?? []
+        if (changes.length === 0) { setDiffNav(null); return }
+        const ln = e.position.lineNumber
+        let idx = changes.findIndex((c) => {
+          const end = c.modifiedEndLineNumber > 0 ? c.modifiedEndLineNumber : c.modifiedStartLineNumber
+          return ln <= end
+        })
+        if (idx === -1) idx = changes.length - 1
+        setDiffNav({ index: idx, total: changes.length })
+      }
     })
   }, [tryDetect, refresh, scheduleRecentSave])
 
@@ -608,7 +629,11 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
 
     wireEditor(orig, 'original')
     wireEditor(mod, 'modified')
-    de.onDidUpdateDiff(refresh)
+    de.onDidUpdateDiff(() => {
+      const changes = de.getLineChanges() ?? []
+      setDiffNav(changes.length > 0 ? { index: 0, total: changes.length } : null)
+      refresh()
+    })
 
     // Load initial content (from shared URL)
     if (initialOriginal != null) orig.setValue(initialOriginal)
@@ -673,6 +698,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
     { id: 'copy-diff', label: 'Copy Diff as Patch Text', action: copyDiff },
     { id: 'print', label: 'Print Diff', shortcut: 'Ctrl+P', action: printDiff },
     { id: 'shortcuts', label: 'Keyboard Shortcuts', shortcut: 'Ctrl+?', action: () => setShortcutsOpen(true) },
+    { id: 'goto-line', label: 'Go to Line…', shortcut: 'Ctrl+G', action: () => setGotoLineOpen(true) },
     ...languages.map((l) => ({
       id: `lang-${l.id}`,
       label: `Language: ${l.label}`,
@@ -697,6 +723,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
     const bindings: Array<{ test: (e: KeyboardEvent) => boolean; action: () => void }> = [
       { test: (e) => (e.ctrlKey || e.metaKey) && e.key === 'k', action: () => setPaletteOpen((v) => !v) },
       { test: (e) => (e.ctrlKey || e.metaKey) && e.key === '?', action: () => setShortcutsOpen((v) => !v) },
+      { test: (e) => (e.ctrlKey || e.metaKey) && /^[gG]$/.test(e.key), action: () => setGotoLineOpen(true) },
       { test: (e) => (e.ctrlKey || e.metaKey) && e.key === ',', action: toggleSettings },
       { test: (e) => (e.ctrlKey || e.metaKey) && e.shiftKey && /^[fF]$/.test(e.key), action: format },
       { test: (e) => (e.ctrlKey || e.metaKey) && !e.shiftKey && /^[jJ]$/.test(e.key), action: toggleTheme },
@@ -725,6 +752,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
         setPaletteOpen(false)
         setSettingsOpen(false)
         setShortcutsOpen(false)
+        setGotoLineOpen(false)
         return
       }
 
@@ -739,7 +767,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [format, toggleTheme, toggleView, toggleWrap, toggleSettings, swap, clear, focusOriginal, focusModified, exportPatch, exportHtml, printDiff, acceptHunkFromOriginal, acceptHunkFromModified, nextDiff, prevDiff, navigateMode, setShortcutsOpen])
+  }, [format, toggleTheme, toggleView, toggleWrap, toggleSettings, swap, clear, focusOriginal, focusModified, exportPatch, exportHtml, printDiff, acceptHunkFromOriginal, acceptHunkFromModified, nextDiff, prevDiff, navigateMode])
 
   // --- Render ---
 
@@ -848,10 +876,23 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
         </div>
       </main>
 
-      <StatusBar stats={stats} eolInfo={eolInfo} wordCount={wordCount} charCount={charCount} cursorPos={cursorPos} />
+      <StatusBar stats={stats} eolInfo={eolInfo} wordCount={wordCount} charCount={charCount} cursorPos={cursorPos} diffNav={diffNav} />
 
       {paletteOpen && <CommandPalette commands={commands} onClose={() => setPaletteOpen(false)} />}
       {shortcutsOpen && <KeyboardShortcuts onClose={() => setShortcutsOpen(false)} />}
+      {gotoLineOpen && (
+        <GoToLine
+          maxLine={Math.max(
+            origEditorRef.current?.getModel()?.getLineCount() ?? 1,
+            modEditorRef.current?.getModel()?.getLineCount() ?? 1,
+          )}
+          onClose={() => setGotoLineOpen(false)}
+          onGo={(line) => {
+            const ed = focusedEditor === 'original' ? origEditorRef.current : modEditorRef.current
+            if (ed) { ed.setPosition({ lineNumber: line, column: 1 }); ed.revealLineInCenter(line); ed.focus() }
+          }}
+        />
+      )}
     </div>
   )
 }

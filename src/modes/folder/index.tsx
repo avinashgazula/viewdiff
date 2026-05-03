@@ -18,8 +18,30 @@ interface DiffEntry {
   status: FileStatus
   leftSize: number | null
   rightSize: number | null
+  leftModified: number | null
+  rightModified: number | null
   leftFile: File | null
   rightFile: File | null
+}
+
+function formatRelativeTime(ms: number): string {
+  const diff = Date.now() - ms
+  if (diff < 60_000) return 'just now'
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`
+  if (diff < 7 * 86_400_000) return `${Math.floor(diff / 86_400_000)}d ago`
+  return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+function sizeDelta(left: number | null, right: number | null): string | null {
+  if (left === null || right === null) return null
+  const d = right - left
+  if (d === 0) return null
+  const sign = d > 0 ? '+' : ''
+  const abs = Math.abs(d)
+  if (abs < 1024) return `${sign}${d} B`
+  if (abs < 1024 * 1024) return `${sign}${(d / 1024).toFixed(1)} KB`
+  return `${sign}${(d / 1024 / 1024).toFixed(1)} MB`
 }
 
 async function hashFile(file: File): Promise<string> {
@@ -127,6 +149,8 @@ export function FolderMode() {
           status,
           leftSize: lFile?.size ?? null,
           rightSize: rFile?.size ?? null,
+          leftModified: lFile?.lastModified ?? null,
+          rightModified: rFile?.lastModified ?? null,
           leftFile: lFile,
           rightFile: rFile,
         })
@@ -310,7 +334,7 @@ export function FolderMode() {
           {/* Column headers */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '24px 1fr 80px 80px 80px 80px',
+            gridTemplateColumns: '24px 1fr 80px 80px 72px 80px 80px',
             padding: '6px 16px',
             background: 'var(--surface)',
             borderBottom: '1px solid var(--border)',
@@ -325,6 +349,7 @@ export function FolderMode() {
             <div>File</div>
             <div style={{ textAlign: 'right' }}>Left size</div>
             <div style={{ textAlign: 'right' }}>Right size</div>
+            <div style={{ textAlign: 'right' }}>Delta</div>
             <div style={{ textAlign: 'center' }}>Status</div>
             <div />
           </div>
@@ -336,53 +361,65 @@ export function FolderMode() {
                 No files match this filter
               </div>
             )}
-            {filtered.map((entry) => (
-              <div
-                key={entry.path}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '24px 1fr 80px 80px 80px 80px',
-                  padding: '6px 16px',
-                  borderBottom: '1px solid var(--border-subtle)',
-                  alignItems: 'center',
-                  fontSize: 13,
-                  background: entry.status === 'different' ? 'oklch(95% 0.02 80 / 0.4)'
-                    : entry.status === 'left-only' ? 'var(--red-bg)'
-                    : entry.status === 'right-only' ? 'var(--green-bg)'
-                    : 'transparent',
-                }}
-              >
-                <StatusBadge status={entry.status} />
-                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                  {entry.path}
+            {filtered.map((entry) => {
+              const delta = sizeDelta(entry.leftSize, entry.rightSize)
+              return (
+                <div
+                  key={entry.path}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '24px 1fr 80px 80px 72px 80px 80px',
+                    padding: '6px 16px',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    alignItems: 'center',
+                    fontSize: 13,
+                    background: entry.status === 'different' ? 'oklch(95% 0.02 80 / 0.4)'
+                      : entry.status === 'left-only' ? 'var(--red-bg)'
+                      : entry.status === 'right-only' ? 'var(--green-bg)'
+                      : 'transparent',
+                  }}
+                >
+                  <StatusBadge status={entry.status} />
+                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                    {entry.path}
+                  </div>
+                  <div
+                    style={{ textAlign: 'right', fontSize: 11.5, color: 'var(--text-muted)' }}
+                    title={entry.leftModified != null ? `Modified ${formatRelativeTime(entry.leftModified)}` : undefined}
+                  >
+                    {entry.leftSize !== null ? formatSize(entry.leftSize) : '—'}
+                  </div>
+                  <div
+                    style={{ textAlign: 'right', fontSize: 11.5, color: 'var(--text-muted)' }}
+                    title={entry.rightModified != null ? `Modified ${formatRelativeTime(entry.rightModified)}` : undefined}
+                  >
+                    {entry.rightSize !== null ? formatSize(entry.rightSize) : '—'}
+                  </div>
+                  <div style={{ textAlign: 'right', fontSize: 11, color: delta ? (delta.startsWith('+') ? 'var(--green)' : 'var(--red)') : 'var(--text-dim)' }}>
+                    {delta ?? (entry.leftSize !== null && entry.rightSize !== null ? '=' : '—')}
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                      {entry.status === 'same' ? 'Identical'
+                        : entry.status === 'different' ? 'Changed'
+                        : entry.status === 'left-only' ? 'Left only'
+                        : 'Right only'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    {entry.status === 'different' && entry.leftFile && entry.rightFile && (
+                      <button
+                        className="btn outlined"
+                        style={{ fontSize: 11, height: 24, padding: '0 8px' }}
+                        onClick={() => openTextDiff(entry)}
+                      >
+                        Diff
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div style={{ textAlign: 'right', fontSize: 11.5, color: 'var(--text-muted)' }}>
-                  {entry.leftSize !== null ? formatSize(entry.leftSize) : '—'}
-                </div>
-                <div style={{ textAlign: 'right', fontSize: 11.5, color: 'var(--text-muted)' }}>
-                  {entry.rightSize !== null ? formatSize(entry.rightSize) : '—'}
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-                    {entry.status === 'same' ? 'Identical'
-                      : entry.status === 'different' ? 'Changed'
-                      : entry.status === 'left-only' ? 'Left only'
-                      : 'Right only'}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  {entry.status === 'different' && entry.leftFile && entry.rightFile && (
-                    <button
-                      className="btn outlined"
-                      style={{ fontSize: 11, height: 24, padding: '0 8px' }}
-                      onClick={() => openTextDiff(entry)}
-                    >
-                      Diff
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

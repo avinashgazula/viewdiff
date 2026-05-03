@@ -17,6 +17,7 @@ const GROUPS: ShortcutGroup[] = [
       { keys: 'Ctrl+K', label: 'Open command palette' },
       { keys: 'Ctrl+,', label: 'Open settings' },
       { keys: 'Ctrl+?', label: 'Keyboard shortcuts' },
+    { keys: 'Ctrl+G', label: 'Go to line' },
       { keys: 'Ctrl+J', label: 'Cycle theme' },
       { keys: 'Alt+1–7', label: 'Navigate modes' },
     ],

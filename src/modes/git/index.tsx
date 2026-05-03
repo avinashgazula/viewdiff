@@ -5,8 +5,22 @@ import { MoonIcon, MonitorIcon, SunIcon } from '../../components/icons'
 import { parsePatch, reconstructSides, langFromPath, type FilePatch } from './patch-parser'
 import { registerThemes } from '../../themes'
 import { encodeText, decodeText } from '../../share'
+import { downloadText } from '../../export'
 import type { editor } from 'monaco-editor'
 import type { Monaco } from '@monaco-editor/react'
+
+function buildFilePatch(file: FilePatch): string {
+  const oldPath = file.oldPath || '/dev/null'
+  const newPath = file.newPath || '/dev/null'
+  const rows: string[] = [`--- a/${oldPath}`, `+++ b/${newPath}`]
+  for (const hunk of file.hunks) {
+    rows.push(`@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@${hunk.header ? ' ' + hunk.header : ''}`)
+    for (const l of hunk.lines) {
+      rows.push((l.type === 'add' ? '+' : l.type === 'remove' ? '-' : ' ') + l.content)
+    }
+  }
+  return rows.join('\n') + '\n'
+}
 
 const LazyDiffEditor = lazy(() =>
   import('@monaco-editor/react').then((m) => ({ default: m.DiffEditor })),
@@ -256,10 +270,35 @@ export function GitMode() {
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
             {currentFile && (
               <>
-                <div style={{ padding: '6px 14px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)', flexShrink: 0 }}>
-                  {currentFile.oldPath !== currentFile.newPath && currentFile.oldPath
-                    ? `${currentFile.oldPath} → ${currentFile.newPath}`
-                    : currentFile.newPath || currentFile.oldPath}
+                <div style={{ padding: '4px 10px 4px 14px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  <span style={{ flex: 1, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {currentFile.oldPath !== currentFile.newPath && currentFile.oldPath
+                      ? `${currentFile.oldPath} → ${currentFile.newPath}`
+                      : currentFile.newPath || currentFile.oldPath}
+                  </span>
+                  {currentFile.hunks.length > 0 && (
+                    <>
+                      <button
+                        className="btn outlined"
+                        style={{ fontSize: 11, height: 22, padding: '0 8px', flexShrink: 0 }}
+                        title="Copy this file's diff to clipboard"
+                        onClick={() => navigator.clipboard.writeText(buildFilePatch(currentFile))}
+                      >
+                        Copy diff
+                      </button>
+                      <button
+                        className="btn outlined"
+                        style={{ fontSize: 11, height: 22, padding: '0 8px', flexShrink: 0 }}
+                        title="Download this file's diff as a .patch file"
+                        onClick={() => {
+                          const name = (currentFile.newPath || currentFile.oldPath).split('/').pop() ?? 'file'
+                          downloadText(buildFilePatch(currentFile), `${name}.patch`)
+                        }}
+                      >
+                        Download
+                      </button>
+                    </>
+                  )}
                 </div>
                 {currentFile.isBinary ? (
                   <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 13 }}>

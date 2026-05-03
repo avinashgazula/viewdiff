@@ -13,6 +13,7 @@ interface Props {
   wordCount?: { orig: number; mod: number }
   charCount?: { orig: number; mod: number }
   cursorPos?: { line: number; col: number } | null
+  diffNav?: { index: number; total: number } | null
 }
 
 function DiffBar({ additions, deletions }: { additions: number; deletions: number }) {
@@ -47,7 +48,7 @@ function EOLBadge({ orig, mod }: EOLInfo) {
   )
 }
 
-export const StatusBar = memo(function StatusBar({ stats, eolInfo, wordCount, charCount, cursorPos }: Props) {
+export const StatusBar = memo(function StatusBar({ stats, eolInfo, wordCount, charCount, cursorPos, diffNav }: Props) {
   const fk = formatKeybinding
 
   return (
@@ -55,7 +56,14 @@ export const StatusBar = memo(function StatusBar({ stats, eolInfo, wordCount, ch
       <div className="flex items-center gap-3">
         {stats.changes > 0 ? (
           <>
-            <span>{stats.changes} change{stats.changes !== 1 ? 's' : ''}</span>
+            <span>
+              {stats.changes} change{stats.changes !== 1 ? 's' : ''}
+              {diffNav && diffNav.total > 0 && (
+                <span style={{ color: 'var(--text-dim)', fontSize: 10.5, marginLeft: 5 }}>
+                  ({diffNav.index + 1}/{diffNav.total})
+                </span>
+              )}
+            </span>
             <span className="stat-green" aria-label={`${stats.additions} additions`}>+{stats.additions}</span>
             <span className="stat-red" aria-label={`${stats.deletions} deletions`}>&minus;{stats.deletions}</span>
             <DiffBar additions={stats.additions} deletions={stats.deletions} />
