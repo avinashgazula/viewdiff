@@ -145,17 +145,20 @@ function getColumns(leftRows: Row[], rightRows: Row[], hasHeader: boolean): { he
 const ROW_HEIGHT = 34
 const HEADER_HEIGHT = 38
 
-function VirtualTableBody({ rows, numCols, colMap, showOnlyDiff, containerHeight }: {
+function VirtualTableBody({ rows, numCols, colMap, showOnlyDiff, containerHeight, visibleColIndices }: {
   rows: DiffRow[]
   numCols: number
   colMap: ColMap
   showOnlyDiff: boolean
   containerHeight: number
+  visibleColIndices?: number[]
 }) {
   const [scrollTop, setScrollTop] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const displayRows = showOnlyDiff ? rows.filter((r, i) => r.type !== 'same' || i === 0) : rows
+  const cols = visibleColIndices ?? Array.from({ length: numCols }, (_, i) => i)
+  const vc = cols.length
 
   const buffer = 8
   const viewHeight = containerHeight - HEADER_HEIGHT
@@ -164,21 +167,19 @@ function VirtualTableBody({ rows, numCols, colMap, showOnlyDiff, containerHeight
   const visibleRows = displayRows.slice(startIdx, endIdx)
   const offsetY = startIdx * ROW_HEIGHT
 
-  const colWidthPct = 100 / numCols
-
   return (
     <div
       ref={containerRef}
       style={{ height: viewHeight, overflowY: 'auto', overflowX: 'auto', position: 'relative' }}
       onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
     >
-      <div style={{ height: displayRows.length * ROW_HEIGHT, position: 'relative', minWidth: numCols * 120 }}>
+      <div style={{ height: displayRows.length * ROW_HEIGHT, position: 'relative', minWidth: vc * 120 }}>
         <div style={{ transform: `translateY(${offsetY}px)` }}>
           {visibleRows.map((row, idx) => {
             const absIdx = startIdx + idx
             const rowStyle: React.CSSProperties = {
               display: 'grid',
-              gridTemplateColumns: `repeat(${numCols}, minmax(80px, 1fr)) repeat(${numCols}, minmax(80px, 1fr))`,
+              gridTemplateColumns: `repeat(${vc}, minmax(80px, 1fr)) repeat(${vc}, minmax(80px, 1fr))`,
               height: ROW_HEIGHT,
               borderBottom: '1px solid var(--border-subtle)',
             }
@@ -190,7 +191,7 @@ function VirtualTableBody({ rows, numCols, colMap, showOnlyDiff, containerHeight
 
             return (
               <div key={absIdx} style={{ ...rowStyle, background: bgColor }}>
-                {Array.from({ length: numCols }, (_, ci) => {
+                {cols.map((ci) => {
                   const val = row.left?.[ci] ?? ''
                   const cellBg = row.type === 'changed' && row.changedCells[ci]
                     ? 'oklch(88% 0.08 80 / 0.6)' : 'transparent'
@@ -200,7 +201,7 @@ function VirtualTableBody({ rows, numCols, colMap, showOnlyDiff, containerHeight
                     </div>
                   )
                 })}
-                {Array.from({ length: numCols }, (_, ci) => {
+                {cols.map((ci) => {
                   const mappedIdx = colMap[ci] >= 0 ? colMap[ci] : ci
                   const val = row.right?.[mappedIdx] ?? ''
                   const cellBg = row.type === 'changed' && row.changedCells[ci]
@@ -232,6 +233,9 @@ export function TableMode() {
   const [sortCol, setSortCol] = useState<number | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [rowFilter, setRowFilter] = useState('')
+  const [hiddenCols, setHiddenCols] = useState<Set<number>>(new Set())
+  const [colMenuOpen, setColMenuOpen] = useState(false)
+  const colMenuRef = useRef<HTMLDivElement>(null)
 
   // Load from URL on mount
   useEffect(() => {
@@ -278,6 +282,7 @@ export function TableMode() {
     setNumCols(nc)
     setDiffRows(rows)
     setSortCol(null)
+    setHiddenCols(new Set())
 
     const counts = rows.reduce((acc, r, i) => {
       if (hasHeader && i === 0) return acc
@@ -351,6 +356,8 @@ export function TableMode() {
   }
 
   const hasDiff = numCols > 0
+  const visibleColIndices = Array.from({ length: numCols }, (_, i) => i).filter((i) => !hiddenCols.has(i))
+  const visibleCount = visibleColIndices.length
 
   return (
     <div className="h-screen flex flex-col" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
@@ -404,6 +411,47 @@ export function TableMode() {
 
           <div className="divider" aria-hidden="true" />
 
+          {hasDiff && (
+            <div style={{ position: 'relative' }} ref={colMenuRef}>
+              <button
+                className={`btn outlined ${colMenuOpen ? 'active' : ''}`}
+                title="Show/hide columns"
+                onClick={() => setColMenuOpen((v) => !v)}
+              >
+                Columns {hiddenCols.size > 0 ? `(${visibleCount}/${numCols})` : ''}
+              </button>
+              {colMenuOpen && (
+                <div
+                  style={{
+                    position: 'absolute', top: '100%', right: 0, zIndex: 200,
+                    background: 'var(--surface)', border: '1px solid var(--border)',
+                    borderRadius: 8, padding: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                    minWidth: 160, maxHeight: 300, overflowY: 'auto', marginTop: 4,
+                  }}
+                  onMouseLeave={() => setColMenuOpen(false)}
+                >
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 6, paddingBottom: 6, borderBottom: '1px solid var(--border)' }}>
+                    <button className="btn outlined" style={{ fontSize: 10, height: 18, padding: '0 5px' }} onClick={() => setHiddenCols(new Set())}>Show all</button>
+                    <button className="btn outlined" style={{ fontSize: 10, height: 18, padding: '0 5px' }} onClick={() => setHiddenCols(new Set(Array.from({ length: numCols }, (_, i) => i)))}>Hide all</button>
+                  </div>
+                  {headers.map((h, i) => (
+                    <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0', cursor: 'pointer', fontSize: 12 }}>
+                      <input
+                        type="checkbox"
+                        checked={!hiddenCols.has(i)}
+                        onChange={(e) => setHiddenCols((prev) => {
+                          const next = new Set(prev)
+                          e.target.checked ? next.delete(i) : next.add(i)
+                          return next
+                        })}
+                      />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h || `Col ${i + 1}`}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {diffRows.length > 0 && (
             <button
               className="btn outlined"
@@ -488,7 +536,7 @@ export function TableMode() {
             {/* Sticky column headers */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: `repeat(${numCols}, minmax(80px, 1fr)) repeat(${numCols}, minmax(80px, 1fr))`,
+              gridTemplateColumns: `repeat(${visibleCount}, minmax(80px, 1fr)) repeat(${visibleCount}, minmax(80px, 1fr))`,
               height: HEADER_HEIGHT,
               flexShrink: 0,
               background: 'var(--surface)',
@@ -496,7 +544,8 @@ export function TableMode() {
               overflowX: 'auto',
             }}>
               {['Original', 'Modified'].map((_side, si) => (
-                headers.map((h, ci) => {
+                visibleColIndices.map((ci) => {
+                  const h = headers[ci] ?? `Col ${ci + 1}`
                   const isSorted = sortCol === ci
                   const arrow = isSorted ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''
                   return (
@@ -525,6 +574,7 @@ export function TableMode() {
               colMap={colMap}
               showOnlyDiff={showOnlyDiff}
               containerHeight={containerHeight}
+              visibleColIndices={visibleColIndices}
             />
           </>
         )}
