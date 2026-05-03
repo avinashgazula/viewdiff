@@ -11,6 +11,7 @@ interface Props {
   stats: DiffStats
   eolInfo?: EOLInfo
   wordCount?: { orig: number; mod: number }
+  charCount?: { orig: number; mod: number }
 }
 
 function DiffBar({ additions, deletions }: { additions: number; deletions: number }) {
@@ -45,7 +46,7 @@ function EOLBadge({ orig, mod }: EOLInfo) {
   )
 }
 
-export const StatusBar = memo(function StatusBar({ stats, eolInfo, wordCount }: Props) {
+export const StatusBar = memo(function StatusBar({ stats, eolInfo, wordCount, charCount }: Props) {
   const fk = formatKeybinding
 
   return (
@@ -68,6 +69,14 @@ export const StatusBar = memo(function StatusBar({ stats, eolInfo, wordCount }: 
             title={`Word count — Original: ${wordCount.orig.toLocaleString()}  Modified: ${wordCount.mod.toLocaleString()}`}
           >
             {wordCount.orig.toLocaleString()} / {wordCount.mod.toLocaleString()} words
+          </span>
+        )}
+        {charCount && (charCount.orig > 0 || charCount.mod > 0) && (
+          <span
+            style={{ fontSize: 10.5, color: 'var(--text-dim)', fontVariantNumeric: 'tabular-nums' }}
+            title={`Character count — Original: ${charCount.orig.toLocaleString()}  Modified: ${charCount.mod.toLocaleString()}`}
+          >
+            {charCount.orig.toLocaleString()} / {charCount.mod.toLocaleString()} chars
           </span>
         )}
       </div>

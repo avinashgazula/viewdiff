@@ -18,6 +18,7 @@ import { registerThemes } from './themes'
 import { encodeDiff, buildShareUrl } from './share'
 import { generatePatch, generateHtmlDiff, downloadText } from './export'
 import { useRecent } from './hooks/use-recent'
+import { KeyboardShortcuts } from './components/keyboard-shortcuts'
 
 const LazyDiffEditor = lazy(() =>
   import('@monaco-editor/react').then((m) => ({ default: m.DiffEditor }))
@@ -88,7 +89,9 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
   const [editorReady, setEditorReady] = useState(false)
   const [eolInfo, setEolInfo] = useState<{ orig: string | null; mod: string | null }>({ orig: null, mod: null })
   const [wordCount, setWordCount] = useState<{ orig: number; mod: number }>({ orig: 0, mod: 0 })
+  const [charCount, setCharCount] = useState<{ orig: number; mod: number }>({ orig: 0, mod: 0 })
   const [isDragging, setIsDragging] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
 
   // Abstracted editor refs — work for both DiffEditor and two separate editors
   const origEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
@@ -533,6 +536,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
       setEolInfo({ orig: detectEOL(ov), mod: detectEOL(mv) })
       const wc = (s: string) => s.trim() ? s.trim().split(/\s+/).length : 0
       setWordCount({ orig: wc(ov), mod: wc(mv) })
+      setCharCount({ orig: ov.length, mod: mv.length })
     }, 200)
   }, [])
 
@@ -663,6 +667,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
     { id: 'focus-mod', label: 'Focus Modified Editor', shortcut: 'Ctrl+2', action: focusModified },
     { id: 'copy-diff', label: 'Copy Diff as Patch Text', action: copyDiff },
     { id: 'print', label: 'Print Diff', shortcut: 'Ctrl+P', action: printDiff },
+    { id: 'shortcuts', label: 'Keyboard Shortcuts', shortcut: 'Ctrl+?', action: () => setShortcutsOpen(true) },
     ...languages.map((l) => ({
       id: `lang-${l.id}`,
       label: `Language: ${l.label}`,
@@ -679,13 +684,14 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
         },
       })),
     ] : []),
-  ], [format, share, copyDiff, printDiff, exportHtml, acceptHunkFromOriginal, acceptHunkFromModified, toggleTheme, toggleView, toggleWrap, swap, clear, toggleSettings, focusOriginal, focusModified, changeLang, isMobile, recents])
+  ], [format, share, copyDiff, printDiff, exportHtml, acceptHunkFromOriginal, acceptHunkFromModified, toggleTheme, toggleView, toggleWrap, swap, clear, toggleSettings, focusOriginal, focusModified, changeLang, isMobile, recents, setShortcutsOpen])
 
   // --- Keyboard shortcuts ---
 
   useEffect(() => {
     const bindings: Array<{ test: (e: KeyboardEvent) => boolean; action: () => void }> = [
       { test: (e) => (e.ctrlKey || e.metaKey) && e.key === 'k', action: () => setPaletteOpen((v) => !v) },
+      { test: (e) => (e.ctrlKey || e.metaKey) && e.key === '?', action: () => setShortcutsOpen((v) => !v) },
       { test: (e) => (e.ctrlKey || e.metaKey) && e.key === ',', action: toggleSettings },
       { test: (e) => (e.ctrlKey || e.metaKey) && e.shiftKey && /^[fF]$/.test(e.key), action: format },
       { test: (e) => (e.ctrlKey || e.metaKey) && !e.shiftKey && /^[jJ]$/.test(e.key), action: toggleTheme },
@@ -713,6 +719,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
       if (e.key === 'Escape') {
         setPaletteOpen(false)
         setSettingsOpen(false)
+        setShortcutsOpen(false)
         return
       }
 
@@ -727,7 +734,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [format, toggleTheme, toggleView, toggleWrap, toggleSettings, swap, clear, focusOriginal, focusModified, exportPatch, exportHtml, printDiff, acceptHunkFromOriginal, acceptHunkFromModified, nextDiff, prevDiff, navigateMode])
+  }, [format, toggleTheme, toggleView, toggleWrap, toggleSettings, swap, clear, focusOriginal, focusModified, exportPatch, exportHtml, printDiff, acceptHunkFromOriginal, acceptHunkFromModified, nextDiff, prevDiff, navigateMode, setShortcutsOpen])
 
   // --- Render ---
 
@@ -836,9 +843,10 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
         </div>
       </main>
 
-      <StatusBar stats={stats} eolInfo={eolInfo} wordCount={wordCount} />
+      <StatusBar stats={stats} eolInfo={eolInfo} wordCount={wordCount} charCount={charCount} />
 
       {paletteOpen && <CommandPalette commands={commands} onClose={() => setPaletteOpen(false)} />}
+      {shortcutsOpen && <KeyboardShortcuts onClose={() => setShortcutsOpen(false)} />}
     </div>
   )
 }

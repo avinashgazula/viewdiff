@@ -168,12 +168,14 @@ function DropZone({ label, image, onFile }: { label: string; image: ImageInfo | 
   )
 }
 
-function ImageCanvas({ imageData, label, zoom, pan, onPan }: {
+function ImageCanvas({ imageData, label, zoom, pan, onPan, onHover, onLeave }: {
   imageData: ImageData | null
   label: string
   zoom: number
   pan: { x: number; y: number }
   onPan: (dx: number, dy: number) => void
+  onHover?: (x: number, y: number, r: number, g: number, b: number, a: number) => void
+  onLeave?: () => void
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const dragging = useRef(false)
@@ -193,12 +195,24 @@ function ImageCanvas({ imageData, label, zoom, pan, onPan }: {
         style={{ width: '100%', height: '100%', overflow: 'hidden', cursor: 'grab' }}
         onMouseDown={(e) => { dragging.current = true; lastPos.current = { x: e.clientX, y: e.clientY } }}
         onMouseMove={(e) => {
-          if (!dragging.current) return
-          onPan(e.clientX - lastPos.current.x, e.clientY - lastPos.current.y)
-          lastPos.current = { x: e.clientX, y: e.clientY }
+          if (dragging.current) {
+            onPan(e.clientX - lastPos.current.x, e.clientY - lastPos.current.y)
+            lastPos.current = { x: e.clientX, y: e.clientY }
+          }
+          if (!canvasRef.current || !imageData || !onHover) return
+          const rect = canvasRef.current.getBoundingClientRect()
+          if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+            onLeave?.(); return
+          }
+          const px = Math.floor((e.clientX - rect.left) / rect.width * imageData.width)
+          const py = Math.floor((e.clientY - rect.top) / rect.height * imageData.height)
+          if (px >= 0 && px < imageData.width && py >= 0 && py < imageData.height) {
+            const idx = (py * imageData.width + px) * 4
+            onHover(px, py, imageData.data[idx], imageData.data[idx + 1], imageData.data[idx + 2], imageData.data[idx + 3])
+          }
         }}
         onMouseUp={() => { dragging.current = false }}
-        onMouseLeave={() => { dragging.current = false }}
+        onMouseLeave={() => { dragging.current = false; onLeave?.() }}
       >
         <canvas
           ref={canvasRef}
@@ -229,6 +243,7 @@ export function ImageMode() {
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [loading, setLoading] = useState(false)
+  const [pixelInfo, setPixelInfo] = useState<{ x: number; y: number; r: number; g: number; b: number; a: number } | null>(null)
   const blendCanvasRef = useRef<HTMLCanvasElement>(null)
 
   async function handleFile(side: 'left' | 'right', file: File) {
@@ -390,6 +405,8 @@ export function ImageMode() {
                   zoom={zoom}
                   pan={pan}
                   onPan={(dx, dy) => setPan((p) => ({ x: p.x + dx, y: p.y + dy }))}
+                  onHover={(x, y, r, g, b, a) => setPixelInfo({ x, y, r, g, b, a })}
+                  onLeave={() => setPixelInfo(null)}
                 />
                 {overlayMode === 'side-by-side' && (
                   <div style={{ width: 1, background: 'var(--border)', flexShrink: 0 }} />
@@ -401,6 +418,8 @@ export function ImageMode() {
                     zoom={zoom}
                     pan={pan}
                     onPan={(dx, dy) => setPan((p) => ({ x: p.x + dx, y: p.y + dy }))}
+                    onHover={(x, y, r, g, b, a) => setPixelInfo({ x, y, r, g, b, a })}
+                    onLeave={() => setPixelInfo(null)}
                   />
                 )}
               </>
@@ -434,6 +453,19 @@ export function ImageMode() {
                 <span>Diff region: {diffResult.boundingBox.w}×{diffResult.boundingBox.h}px</span>
               )}
             </>
+          )}
+          {pixelInfo && (
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)' }}>
+              ({pixelInfo.x}, {pixelInfo.y})
+              {' '}
+              <span style={{
+                display: 'inline-block', width: 10, height: 10, borderRadius: 2,
+                background: `rgba(${pixelInfo.r},${pixelInfo.g},${pixelInfo.b},${(pixelInfo.a / 255).toFixed(2)})`,
+                border: '1px solid var(--border)', verticalAlign: 'middle', marginRight: 3,
+              }} />
+              rgb({pixelInfo.r},{pixelInfo.g},{pixelInfo.b})
+              {pixelInfo.a < 255 && ` α:${pixelInfo.a}`}
+            </span>
           )}
         </div>
         <div style={{ display: 'flex', gap: 16, fontSize: 11 }}>

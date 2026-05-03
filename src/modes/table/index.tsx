@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Papa from 'papaparse'
 import { ModeTabs } from '../../components/mode-tabs'
 import { useTheme } from '../../hooks/use-theme'
@@ -229,6 +229,8 @@ export function TableMode() {
   const [hasHeader, setHasHeader] = useState(true)
   const [showOnlyDiff, setShowOnlyDiff] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
+  const [sortCol, setSortCol] = useState<number | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
   // Load from URL on mount
   useEffect(() => {
@@ -274,6 +276,7 @@ export function TableMode() {
     setColMap(cm)
     setNumCols(nc)
     setDiffRows(rows)
+    setSortCol(null)
 
     const counts = rows.reduce((acc, r, i) => {
       if (hasHeader && i === 0) return acc
@@ -282,6 +285,31 @@ export function TableMode() {
     }, {} as Record<string, number>)
     setStats({ added: counts.added || 0, removed: counts.removed || 0, changed: counts.changed || 0, same: counts.same || 0 })
   }, [leftText, rightText, delimiter, hasHeader])
+
+  const handleSortClick = useCallback((ci: number) => {
+    setSortCol((prev) => {
+      if (prev === ci) {
+        setSortDir((d) => d === 'asc' ? 'desc' : 'asc')
+        return ci
+      }
+      setSortDir('asc')
+      return ci
+    })
+  }, [])
+
+  const sortedRows = useMemo(() => {
+    if (sortCol === null || diffRows.length === 0) return diffRows
+    const hasHeaderRow = hasHeader && diffRows[0]?.type === 'same' && diffRows[0]?.left !== null
+    const headerRows = hasHeaderRow ? [diffRows[0]] : []
+    const dataRows = hasHeaderRow ? diffRows.slice(1) : diffRows
+    const sorted = [...dataRows].sort((a, b) => {
+      const aVal = (a.left ?? a.right)?.[sortCol] ?? ''
+      const bVal = (b.left ?? b.right)?.[sortCol] ?? ''
+      const cmp = aVal.localeCompare(bVal, undefined, { numeric: true, sensitivity: 'base' })
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+    return [...headerRows, ...sorted]
+  }, [diffRows, sortCol, sortDir, hasHeader])
 
   const shareTable = useCallback(async () => {
     if (!leftText.trim() && !rightText.trim()) return
@@ -440,17 +468,32 @@ export function TableMode() {
               borderBottom: '1px solid var(--border)',
               overflowX: 'auto',
             }}>
-              {['Original', 'Modified'].map((side, si) => (
-                headers.map((h, ci) => (
-                  <div key={`${si}-${ci}`} className="table-diff-header">
-                    {si === 0 ? h : (colMap[ci] >= 0 ? headers[colMap[ci]] : h)}
-                  </div>
-                ))
+              {['Original', 'Modified'].map((_side, si) => (
+                headers.map((h, ci) => {
+                  const isSorted = sortCol === ci
+                  const arrow = isSorted ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''
+                  return (
+                    <div
+                      key={`${si}-${ci}`}
+                      className="table-diff-header"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleSortClick(ci)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSortClick(ci) } }}
+                      style={{ cursor: 'pointer', userSelect: 'none', color: isSorted ? 'var(--accent)' : undefined }}
+                      title={`Sort by ${h}`}
+                      aria-sort={isSorted ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    >
+                      {si === 0 ? h : (colMap[ci] >= 0 ? headers[colMap[ci]] : h)}
+                      {isSorted && <span aria-hidden="true">{arrow}</span>}
+                    </div>
+                  )
+                })
               ))}
             </div>
 
             <VirtualTableBody
-              rows={diffRows}
+              rows={sortedRows}
               numCols={numCols}
               colMap={colMap}
               showOnlyDiff={showOnlyDiff}
