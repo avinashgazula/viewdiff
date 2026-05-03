@@ -503,9 +503,20 @@ export function ImageMode() {
             </span>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 16, fontSize: 11 }}>
-          {leftImage && <span>{leftImage.width}×{leftImage.height} · {(leftImage.file.size / 1024).toFixed(1)} KB</span>}
-          {rightImage && <span>{rightImage.width}×{rightImage.height} · {(rightImage.file.size / 1024).toFixed(1)} KB</span>}
+        <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'var(--text-dim)' }}>
+          {leftImage && (
+            <span title={`${leftImage.file.name} — ${leftImage.width}×${leftImage.height}px — ${(leftImage.file.size / 1024).toFixed(1)} KB${leftImage.file.lastModified ? ' — ' + new Date(leftImage.file.lastModified).toLocaleString() : ''}`}>
+              Orig: {leftImage.width}×{leftImage.height} · {(leftImage.file.size / 1024).toFixed(1)} KB
+            </span>
+          )}
+          {rightImage && (
+            <span title={`${rightImage.file.name} — ${rightImage.width}×${rightImage.height}px — ${(rightImage.file.size / 1024).toFixed(1)} KB${rightImage.file.lastModified ? ' — ' + new Date(rightImage.file.lastModified).toLocaleString() : ''}`}>
+              Mod: {rightImage.width}×{rightImage.height} · {(rightImage.file.size / 1024).toFixed(1)} KB
+            </span>
+          )}
+          {leftImage && rightImage && leftImage.width !== rightImage.width || leftImage && rightImage && leftImage.height !== rightImage.height ? (
+            <span style={{ color: 'var(--amber)' }}>⚠ Size mismatch</span>
+          ) : null}
         </div>
       </div>
     </div>

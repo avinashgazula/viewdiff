@@ -239,6 +239,11 @@ function parseHexPattern(raw: string): Uint8Array | null {
   return bytes
 }
 
+function parseTextPattern(raw: string): Uint8Array | null {
+  if (!raw) return null
+  return new TextEncoder().encode(raw)
+}
+
 export function HexMode() {
   const { mode: themeMode, toggle: toggleTheme } = useTheme()
   const [leftBytes, setLeftBytes] = useState<Uint8Array | null>(null)
@@ -424,6 +429,26 @@ export function HexMode() {
                   const offset = findBytes(bytes, pattern)
                   if (offset >= 0) setJumpOffset(offset)
                   else setError('Pattern not found')
+                }}
+              />
+              <input
+                type="text"
+                placeholder="Find text (ASCII)"
+                title="Type text and press Enter to find first match as ASCII bytes"
+                style={{
+                  height: 26, padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: 11.5,
+                  color: 'var(--text)', background: 'var(--surface-raised)',
+                  border: '1px solid var(--border)', borderRadius: 6, outline: 'none', width: 140,
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return
+                  const pattern = parseTextPattern(e.currentTarget.value)
+                  if (!pattern) { setError('Empty search'); return }
+                  setError(null)
+                  const bytes = diff.leftBytes.length >= diff.rightBytes.length ? diff.leftBytes : diff.rightBytes
+                  const offset = findBytes(bytes, pattern)
+                  if (offset >= 0) setJumpOffset(offset)
+                  else setError('Text not found')
                 }}
               />
               {diffRegions.length > 0 && (
