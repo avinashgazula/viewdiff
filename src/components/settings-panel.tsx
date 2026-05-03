@@ -263,6 +263,13 @@ export function SettingsPanel({ settings, onUpdate, onReset, onClose, wordWrap, 
               { value: 120, label: '120' }, { value: 140, label: '140' },
             ]} />
           </SettingRow>
+
+          <SettingRow label="Context lines">
+            <Select value={settings.contextLines} onChange={(v) => onUpdate('contextLines', v)} options={[
+              { value: 0, label: '0' }, { value: 1, label: '1' }, { value: 2, label: '2' },
+              { value: 3, label: '3' }, { value: 5, label: '5' }, { value: 10, label: '10' },
+            ]} />
+          </SettingRow>
         </div>
       </div>
     </div>

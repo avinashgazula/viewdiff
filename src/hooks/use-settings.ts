@@ -25,6 +25,7 @@ export interface Settings {
   lineFilter: string
   showMoves: boolean
   stickyScroll: boolean
+  contextLines: number
 }
 
 const DEFAULTS: Settings = {
@@ -52,6 +53,7 @@ const DEFAULTS: Settings = {
   lineFilter: '',
   showMoves: true,
   stickyScroll: false,
+  contextLines: 3,
 }
 
 const STORAGE_KEY = 'diff-settings'

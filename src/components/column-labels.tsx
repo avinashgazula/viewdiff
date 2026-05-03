@@ -7,6 +7,8 @@ interface Props {
   onLoadModified?: (text: string, filename: string) => void
   onCopyOriginal?: () => void
   onCopyModified?: () => void
+  onPasteOriginal?: () => void
+  onPasteModified?: () => void
 }
 
 function FileLoadButton({ onLoad, label }: { onLoad: (text: string, filename: string) => void; label: string }) {
@@ -56,18 +58,34 @@ function CopyButton({ onCopy, label }: { onCopy: () => void; label: string }) {
   )
 }
 
-export const ColumnLabels = memo(function ColumnLabels({ inline, onLoadOriginal, onLoadModified, onCopyOriginal, onCopyModified }: Props) {
+function PasteButton({ onPaste, label }: { onPaste: () => void; label: string }) {
+  return (
+    <button
+      className="btn icon"
+      style={{ width: 20, height: 20, opacity: 0.55, fontSize: 11 }}
+      aria-label={`Paste clipboard into ${label}`}
+      title={`Paste clipboard into ${label}`}
+      onClick={onPaste}
+    >
+      ⎙
+    </button>
+  )
+}
+
+export const ColumnLabels = memo(function ColumnLabels({ inline, onLoadOriginal, onLoadModified, onCopyOriginal, onCopyModified, onPasteOriginal, onPasteModified }: Props) {
   return (
     <div className="column-labels" role="presentation">
       <div style={!inline ? { borderRight: '1px solid var(--border)' } : undefined}>
         <span aria-hidden="true">Original</span>
         {onCopyOriginal && <CopyButton onCopy={onCopyOriginal} label="Original" />}
+        {onPasteOriginal && <PasteButton onPaste={onPasteOriginal} label="Original" />}
         {onLoadOriginal && <FileLoadButton onLoad={onLoadOriginal} label="Original" />}
       </div>
       {!inline && (
         <div>
           <span aria-hidden="true">Modified</span>
           {onCopyModified && <CopyButton onCopy={onCopyModified} label="Modified" />}
+          {onPasteModified && <PasteButton onPaste={onPasteModified} label="Modified" />}
           {onLoadModified && <FileLoadButton onLoad={onLoadModified} label="Modified" />}
         </div>
       )}

@@ -308,7 +308,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
     const ov = orig.getValue()
     const mv = mod.getValue()
     if (!ov.trim() && !mv.trim()) return
-    const patch = generatePatch(ov, mv, 'original', 'modified')
+    const patch = generatePatch(ov, mv, 'original', 'modified', settingsRef.current.contextLines)
     if (patch) downloadText(patch, 'changes.patch')
   }, [])
 
@@ -405,7 +405,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
     if (!orig || !mod) return
     const ov = orig.getValue(), mv = mod.getValue()
     if (!ov.trim() && !mv.trim()) return
-    const patch = generatePatch(ov, mv, 'original', 'modified')
+    const patch = generatePatch(ov, mv, 'original', 'modified', settingsRef.current.contextLines)
     if (patch) await navigator.clipboard.writeText(patch)
   }, [])
 
@@ -469,6 +469,20 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
   const copyModified = useCallback(async () => {
     const text = modEditorRef.current?.getValue() ?? ''
     if (text) await navigator.clipboard.writeText(text)
+  }, [])
+
+  const pasteOriginal = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      if (text) origEditorRef.current?.setValue(text)
+    } catch { /* clipboard access denied */ }
+  }, [])
+
+  const pasteModified = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      if (text) modEditorRef.current?.setValue(text)
+    } catch { /* clipboard access denied */ }
   }, [])
 
   const normalizeEOL = useCallback(() => {
@@ -864,6 +878,8 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
           onLoadModified={loadModified}
           onCopyOriginal={copyOriginal}
           onCopyModified={copyModified}
+          onPasteOriginal={pasteOriginal}
+          onPasteModified={pasteModified}
         />
       )}
 
