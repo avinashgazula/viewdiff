@@ -196,7 +196,13 @@ function VirtualTableBody({ rows, numCols, colMap, showOnlyDiff, containerHeight
                   const cellBg = row.type === 'changed' && row.changedCells[ci]
                     ? 'oklch(88% 0.08 80 / 0.6)' : 'transparent'
                   return (
-                    <div key={ci} className="table-diff-cell" style={{ background: cellBg }}>
+                    <div
+                      key={ci}
+                      className="table-diff-cell"
+                      style={{ background: cellBg, cursor: 'copy' }}
+                      title={val ? `Click to copy: ${val}` : undefined}
+                      onClick={() => val && navigator.clipboard.writeText(val)}
+                    >
                       {val}
                     </div>
                   )
@@ -207,7 +213,13 @@ function VirtualTableBody({ rows, numCols, colMap, showOnlyDiff, containerHeight
                   const cellBg = row.type === 'changed' && row.changedCells[ci]
                     ? 'oklch(88% 0.08 80 / 0.6)' : 'transparent'
                   return (
-                    <div key={ci} className="table-diff-cell" style={{ background: cellBg }}>
+                    <div
+                      key={ci}
+                      className="table-diff-cell"
+                      style={{ background: cellBg, cursor: 'copy' }}
+                      title={val ? `Click to copy: ${val}` : undefined}
+                      onClick={() => val && navigator.clipboard.writeText(val)}
+                    >
                       {val}
                     </div>
                   )
@@ -453,27 +465,49 @@ export function TableMode() {
             </div>
           )}
           {diffRows.length > 0 && (
-            <button
-              className="btn outlined"
-              title="Export diff as CSV"
-              onClick={() => {
-                const lines: string[] = []
-                const quote = (s: string) => `"${String(s ?? '').replace(/"/g, '""')}"`
-                if (headers.length > 0) lines.push(['_diff_', ...headers].map(quote).join(','))
-                for (const row of diffRows) {
-                  if (row.type === 'same') continue
-                  if (row.type === 'removed' || row.type === 'changed') {
-                    lines.push(['-', ...(row.left ?? [])].map(quote).join(','))
+            <>
+              <button
+                className="btn outlined"
+                title="Export diff changes as CSV (only changed/added/removed rows)"
+                onClick={() => {
+                  const lines: string[] = []
+                  const quote = (s: string) => `"${String(s ?? '').replace(/"/g, '""')}"`
+                  if (headers.length > 0) lines.push(['_diff_', ...headers].map(quote).join(','))
+                  for (const row of diffRows) {
+                    if (row.type === 'same') continue
+                    if (row.type === 'removed' || row.type === 'changed') {
+                      lines.push(['-', ...(row.left ?? [])].map(quote).join(','))
+                    }
+                    if (row.type === 'added' || row.type === 'changed') {
+                      lines.push(['+', ...(row.right ?? [])].map(quote).join(','))
+                    }
                   }
-                  if (row.type === 'added' || row.type === 'changed') {
-                    lines.push(['+', ...(row.right ?? [])].map(quote).join(','))
-                  }
-                }
-                downloadText(lines.join('\n'), 'table-diff.csv', 'text/csv')
-              }}
-            >
-              Export CSV
-            </button>
+                  downloadText(lines.join('\n'), 'table-diff.csv', 'text/csv')
+                }}
+              >
+                Export diff
+              </button>
+              {(rowFilter.trim() || showOnlyDiff || hiddenCols.size > 0) && (
+                <button
+                  className="btn outlined"
+                  title="Export currently visible (filtered) rows as CSV"
+                  onClick={() => {
+                    const lines: string[] = []
+                    const quote = (s: string) => `"${String(s ?? '').replace(/"/g, '""')}"`
+                    const cols = visibleColIndices
+                    const head = cols.map((i) => headers[i] ?? `Col ${i + 1}`)
+                    lines.push(head.map(quote).join(','))
+                    for (const row of filteredRows) {
+                      const data = row.right ?? row.left ?? []
+                      lines.push(cols.map((i) => quote(data[i] ?? '')).join(','))
+                    }
+                    downloadText(lines.join('\n'), 'table-filtered.csv', 'text/csv')
+                  }}
+                >
+                  Export view
+                </button>
+              )}
+            </>
           )}
 
           <button

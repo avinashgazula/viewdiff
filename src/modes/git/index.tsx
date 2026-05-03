@@ -49,6 +49,22 @@ function FileStatusBadge({ status }: { status: FilePatch['status'] }) {
   )
 }
 
+function DiffStatBar({ additions, deletions, maxTotal }: { additions: number; deletions: number; maxTotal: number }) {
+  const BARS = 5
+  const total = additions + deletions
+  if (total === 0 || maxTotal === 0) return <div style={{ width: BARS * 9, height: 8 }} />
+  const addBars = Math.max(additions > 0 ? 1 : 0, Math.round((additions / maxTotal) * BARS))
+  const delBars = Math.max(deletions > 0 ? 1 : 0, Math.round((deletions / maxTotal) * BARS))
+  const emptyBars = Math.max(0, BARS - addBars - delBars)
+  return (
+    <div style={{ display: 'flex', gap: 1, alignItems: 'center', flexShrink: 0 }}>
+      {Array.from({ length: addBars }, (_, i) => <div key={`a${i}`} style={{ width: 8, height: 8, borderRadius: 1, background: 'var(--green)', opacity: 0.85 }} />)}
+      {Array.from({ length: delBars }, (_, i) => <div key={`d${i}`} style={{ width: 8, height: 8, borderRadius: 1, background: 'var(--red)', opacity: 0.85 }} />)}
+      {Array.from({ length: emptyBars }, (_, i) => <div key={`e${i}`} style={{ width: 8, height: 8, borderRadius: 1, background: 'var(--border)' }} />)}
+    </div>
+  )
+}
+
 export function GitMode() {
   const { dark, mode: themeMode, toggle: toggleTheme } = useTheme()
   const [patchText, setPatchText] = useState('')
@@ -89,6 +105,11 @@ export function GitMode() {
   }, [patchText])
 
   const currentFile = parsed?.files[selectedFile]
+
+  const maxStatTotal = useMemo(() => {
+    if (!parsed) return 0
+    return Math.max(...parsed.files.map((f) => f.additions + f.deletions), 0)
+  }, [parsed])
 
   const { original, modified } = useMemo(() => {
     if (!currentFile) return { original: '', modified: '' }
@@ -224,10 +245,10 @@ export function GitMode() {
             onKeyDown={(e) => {
               if (!parsed) return
               const visible = parsed.files.filter((f) => !fileFilter || (f.newPath || f.oldPath).toLowerCase().includes(fileFilter.toLowerCase()))
-              if (e.key === 'ArrowDown') {
+              if (e.key === 'ArrowDown' || e.key === 'j') {
                 e.preventDefault()
                 setSelectedFile((i) => Math.min(i + 1, visible.length - 1))
-              } else if (e.key === 'ArrowUp') {
+              } else if (e.key === 'ArrowUp' || e.key === 'k') {
                 e.preventDefault()
                 setSelectedFile((i) => Math.max(i - 1, 0))
               } else if (e.key === 'Home') {
@@ -282,12 +303,15 @@ export function GitMode() {
                       </div>
                     )}
                   </div>
-                  {(file.additions > 0 || file.deletions > 0) && (
-                    <div style={{ display: 'flex', gap: 4, fontSize: 10.5, flexShrink: 0 }}>
-                      {file.additions > 0 && <span style={{ color: 'var(--green)' }}>+{file.additions}</span>}
-                      {file.deletions > 0 && <span style={{ color: 'var(--red)' }}>-{file.deletions}</span>}
-                    </div>
-                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flexShrink: 0 }}>
+                    <DiffStatBar additions={file.additions} deletions={file.deletions} maxTotal={maxStatTotal} />
+                    {(file.additions > 0 || file.deletions > 0) && (
+                      <div style={{ display: 'flex', gap: 4, fontSize: 10 }}>
+                        {file.additions > 0 && <span style={{ color: 'var(--green)' }}>+{file.additions}</span>}
+                        {file.deletions > 0 && <span style={{ color: 'var(--red)' }}>-{file.deletions}</span>}
+                      </div>
+                    )}
+                  </div>
                 </button>
               )
             })}

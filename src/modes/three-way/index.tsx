@@ -457,10 +457,30 @@ export function ThreeWayMode() {
         <div style={{ flex: showMerge ? '0 0 60%' : 1, display: 'flex', minHeight: 0 }}>
           {panels.map(({ role, label, text, onChange, accent }) => (
             <div key={role} style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: role !== 'right' ? '1px solid var(--border)' : 'none', minWidth: 0 }}>
-              <div style={{ height: 26, display: 'flex', alignItems: 'center', padding: '0 12px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-                <span style={{ fontSize: 11, fontWeight: 650, textTransform: 'uppercase', letterSpacing: '0.06em', color: accent }}>
+              <div style={{ height: 26, display: 'flex', alignItems: 'center', padding: '0 8px 0 12px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', flexShrink: 0, gap: 6 }}>
+                <span style={{ flex: 1, fontSize: 11, fontWeight: 650, textTransform: 'uppercase', letterSpacing: '0.06em', color: accent }}>
                   {label}
                 </span>
+                {text && (
+                  <button
+                    className="btn icon"
+                    style={{ width: 18, height: 18, fontSize: 10, opacity: 0.5 }}
+                    title="Clear this panel"
+                    onClick={() => onChange('')}
+                  >×</button>
+                )}
+                <label
+                  className="btn icon"
+                  style={{ width: 18, height: 18, fontSize: 10, opacity: 0.55, cursor: 'pointer' }}
+                  title={`Load file into ${label}`}
+                >
+                  <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1L14 7H10V13H6V7H2L8 1Z" /></svg>
+                  <input type="file" style={{ display: 'none' }} onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) f.text().then(onChange)
+                    e.target.value = ''
+                  }} />
+                </label>
               </div>
               <div style={{ flex: 1, minHeight: 0 }}>
                 <Suspense fallback={null}>
