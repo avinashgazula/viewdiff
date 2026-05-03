@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ModeTabs } from '../../components/mode-tabs'
 import { useTheme } from '../../hooks/use-theme'
 import { MoonIcon, MonitorIcon, SunIcon } from '../../components/icons'
+import { downloadText } from '../../export'
 
 const BYTES_PER_ROW = 16
 const ROW_HEIGHT = 22
@@ -178,6 +179,28 @@ function detectMime(bytes: Uint8Array): string {
   if (sig.startsWith('CA FE BA BE')) return 'Java class file'
   if (sig.startsWith('1F 8B')) return 'GZIP archive'
   return 'Binary file'
+}
+
+function buildDiffReport(leftFile: File | null, rightFile: File | null, diff: HexDiff, regions: Array<{ start: number; end: number }>): string {
+  const lines: string[] = [
+    `Hex Diff Report`,
+    `================`,
+    `Left:  ${leftFile?.name ?? '(unknown)'} — ${diff.totalLeft.toLocaleString()} bytes`,
+    `Right: ${rightFile?.name ?? '(unknown)'} — ${diff.totalRight.toLocaleString()} bytes`,
+    ``,
+    `${regions.length} diff region${regions.length !== 1 ? 's' : ''}`,
+    ``,
+  ]
+  for (let i = 0; i < regions.length; i++) {
+    const { start, end } = regions[i]
+    lines.push(`Region ${i + 1}: offset 0x${start.toString(16).toUpperCase().padStart(8, '0')} – 0x${end.toString(16).toUpperCase().padStart(8, '0')} (${end - start + 1} bytes)`)
+    const leftBytes = Array.from(diff.leftBytes.slice(start, Math.min(end + 1, start + 32))).map((b) => b.toString(16).toUpperCase().padStart(2, '0')).join(' ')
+    const rightBytes = Array.from(diff.rightBytes.slice(start, Math.min(end + 1, start + 32))).map((b) => b.toString(16).toUpperCase().padStart(2, '0')).join(' ')
+    lines.push(`  Left:  ${leftBytes}${end - start >= 32 ? ' ...' : ''}`)
+    lines.push(`  Right: ${rightBytes}${end - start >= 32 ? ' ...' : ''}`)
+    lines.push(``)
+  }
+  return lines.join('\n')
 }
 
 function getDiffRegions(diffMask: Uint8Array): Array<{ start: number; end: number }> {
@@ -423,6 +446,14 @@ export function HexMode() {
                     onClick={() => jumpToDiffRegion(diffRegionIdx + 1)}
                   >
                     ↓ Next
+                  </button>
+                  <button
+                    className="btn outlined"
+                    style={{ fontSize: 11, height: 26, padding: '0 8px' }}
+                    title="Export diff report as text"
+                    onClick={() => downloadText(buildDiffReport(leftFile, rightFile, diff, diffRegions), 'hex-diff-report.txt')}
+                  >
+                    Export
                   </button>
                 </>
               )}

@@ -13,6 +13,7 @@ interface Props {
   wordCount?: { orig: number; mod: number }
   charCount?: { orig: number; mod: number }
   cursorPos?: { line: number; col: number } | null
+  selectionInfo?: { chars: number; lines: number } | null
   diffNav?: { index: number; total: number } | null
   language?: string
   onNormalizeEOL?: () => void
@@ -61,7 +62,7 @@ function EOLBadge({ orig, mod, onNormalize }: EOLInfo & { onNormalize?: () => vo
   )
 }
 
-export const StatusBar = memo(function StatusBar({ stats, eolInfo, wordCount, charCount, cursorPos, diffNav, language, onNormalizeEOL }: Props) {
+export const StatusBar = memo(function StatusBar({ stats, eolInfo, wordCount, charCount, cursorPos, selectionInfo, diffNav, language, onNormalizeEOL }: Props) {
   const fk = formatKeybinding
 
   return (
@@ -105,6 +106,11 @@ export const StatusBar = memo(function StatusBar({ stats, eolInfo, wordCount, ch
       <div className="flex items-center gap-3" style={{ color: 'var(--text-dim)' }}>
         {language && (
           <span style={{ fontSize: 10.5 }}>{language}</span>
+        )}
+        {selectionInfo && (
+          <span style={{ fontSize: 10.5, fontVariantNumeric: 'tabular-nums', color: 'var(--accent)' }}>
+            {selectionInfo.chars.toLocaleString()} sel{selectionInfo.lines > 1 ? ` (${selectionInfo.lines} lines)` : ''}
+          </span>
         )}
         {cursorPos && (
           <span style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>

@@ -92,6 +92,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
   const [wordCount, setWordCount] = useState<{ orig: number; mod: number }>({ orig: 0, mod: 0 })
   const [charCount, setCharCount] = useState<{ orig: number; mod: number }>({ orig: 0, mod: 0 })
   const [cursorPos, setCursorPos] = useState<{ line: number; col: number } | null>(null)
+  const [selectionInfo, setSelectionInfo] = useState<{ chars: number; lines: number } | null>(null)
   const [diffNav, setDiffNav] = useState<{ index: number; total: number } | null>(null)
   const [gotoLineOpen, setGotoLineOpen] = useState(false)
   const [focusedEditor, setFocusedEditor] = useState<'original' | 'modified'>('modified')
@@ -619,6 +620,19 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
         setDiffNav({ index: idx, total: changes.length })
       }
     })
+
+    ed.onDidChangeCursorSelection((e) => {
+      const sel = e.selection
+      if (sel.isEmpty()) {
+        setSelectionInfo(null)
+        return
+      }
+      const model = ed.getModel()
+      if (!model) return
+      const text = model.getValueInRange(sel)
+      const lines = sel.endLineNumber - sel.startLineNumber + 1
+      setSelectionInfo({ chars: text.length, lines })
+    })
   }, [tryDetect, refresh, scheduleRecentSave])
 
   const remeasureFonts = useCallback((monaco: Monaco) => {
@@ -900,7 +914,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
 
       <StatusBar
         stats={stats} eolInfo={eolInfo} wordCount={wordCount} charCount={charCount}
-        cursorPos={cursorPos} diffNav={diffNav}
+        cursorPos={cursorPos} selectionInfo={selectionInfo} diffNav={diffNav}
         language={languages.find((l) => l.id === effectiveLang)?.label}
         onNormalizeEOL={normalizeEOL}
       />
