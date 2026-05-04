@@ -418,61 +418,77 @@ export function NotebookMode() {
 
       <ModeTabs />
 
-      {!hasData ? (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-muted)' }}>Jupyter Notebook Diff</div>
-          <div style={{ fontSize: 13, color: 'var(--text-dim)' }}>Open two .ipynb files to compare cell-by-cell</div>
-          <div style={{ display: 'flex', gap: 16 }}>
-            {(['left', 'right'] as const).map((side) => (
-              <label
+      {/* Input panels — always visible when no data yet, sticky-collapsible when there is data */}
+      {(!hasData) && (
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          {(['left', 'right'] as const).map((side) => {
+            const err = side === 'left' ? leftError : rightError
+            return (
+              <div
                 key={side}
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-                  border: '2px dashed var(--border)', borderRadius: 12, padding: '28px 36px',
-                  cursor: 'pointer', background: 'var(--surface)',
-                }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: side === 'left' ? '1px solid var(--border)' : 'none', height: 220 }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(side, f) }}
               >
-                <div style={{ fontSize: 30 }}>📓</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  {side === 'left' ? 'Original' : 'Modified'} notebook
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--surface)', flexShrink: 0 }}>
+                  <span style={{ fontSize: 11, fontWeight: 650, textTransform: 'uppercase', letterSpacing: '0.06em', color: err ? 'var(--red)' : 'var(--text-dim)' }}>
+                    {side === 'left' ? 'Original' : 'Modified'}{err ? ' — parse error' : ''}
+                  </span>
+                  <label className="btn outlined" style={{ fontSize: 11.5, cursor: 'pointer' }}>
+                    Open .ipynb
+                    <input type="file" accept=".ipynb" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(side, f) }} />
+                  </label>
                 </div>
-                <input
-                  type="file"
-                  accept=".ipynb"
-                  style={{ display: 'none' }}
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(side, f) }}
+                <textarea
+                  value={side === 'left' ? leftText : rightText}
+                  onChange={(e) => side === 'left' ? setLeftText(e.target.value) : setRightText(e.target.value)}
+                  placeholder={'Paste .ipynb JSON here or drop a file…\n\n{"nbformat": 4, "cells": [...]}'}
+                  spellCheck={false}
+                  style={{
+                    flex: 1, resize: 'none', border: 'none', outline: 'none', padding: '8px 12px',
+                    fontFamily: 'var(--font-mono)', fontSize: 11.5,
+                    background: err ? 'var(--red-bg)' : 'var(--bg)', color: 'var(--text)',
+                  }}
                 />
-              </label>
-            ))}
-          </div>
+              </div>
+            )
+          })}
         </div>
-      ) : (
+      )}
+
+      {hasData ? (
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px 20px' }}>
-          {/* Errors */}
           {(leftError || rightError) && (
             <div style={{ color: 'var(--red)', fontSize: 13, marginBottom: 12 }}>
               {leftError && <div>Original: {leftError}</div>}
               {rightError && <div>Modified: {rightError}</div>}
             </div>
           )}
-
-          {/* Kernel/language info */}
           {lang && (
             <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 12 }}>
-              Kernel: {lang}
-              {rightNb.metadata?.kernelspec?.display_name ? ` (${rightNb.metadata.kernelspec.display_name})` : ''}
+              Kernel: {lang}{rightNb.metadata?.kernelspec?.display_name ? ` (${rightNb.metadata.kernelspec.display_name})` : ''}
+              {' · '}
+              <button
+                className="btn outlined"
+                style={{ fontSize: 10.5, height: 18, padding: '0 6px', marginLeft: 4 }}
+                onClick={() => { setLeftText(''); setRightText('') }}
+              >
+                Load new notebooks
+              </button>
             </div>
           )}
-
-          {/* Diff cells */}
-          {diffs.length === 0 && (
+          {diffs.length === 0 && !leftError && !rightError && (
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: 13 }}>
-              No cells to compare
+              No cells found — check the notebook format
             </div>
           )}
           {diffs.map((diff, i) => (
             <CellRow key={i} diff={diff} showSame={showSame} lang={lang} />
           ))}
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)', fontSize: 13 }}>
+          Paste .ipynb JSON above or open files to compare
         </div>
       )}
 
