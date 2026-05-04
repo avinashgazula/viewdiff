@@ -3,6 +3,7 @@ import { ModeTabs } from '../../components/mode-tabs'
 import { useTheme } from '../../hooks/use-theme'
 import { MoonIcon, MonitorIcon, SunIcon } from '../../components/icons'
 import { downloadText } from '../../export'
+import { decodeText } from '../../share'
 
 type DiffType = 'same' | 'changed' | 'added' | 'removed'
 
@@ -169,6 +170,15 @@ function hasAnyDiff(node: XmlDiffNode): boolean {
   return node.children?.some(hasAnyDiff) ?? false
 }
 
+function nodeMatchesSearch(node: XmlDiffNode, q: string): boolean {
+  if (!q) return true
+  if (node.tagName?.toLowerCase().includes(q)) return true
+  if (node.leftContent?.toLowerCase().includes(q)) return true
+  if (node.rightContent?.toLowerCase().includes(q)) return true
+  if (node.attrs?.some((a) => a.name.toLowerCase().includes(q) || (a.leftVal ?? '').toLowerCase().includes(q) || (a.rightVal ?? '').toLowerCase().includes(q))) return true
+  return node.children?.some((c) => nodeMatchesSearch(c, q)) ?? false
+}
+
 function countDiffs(nodes: XmlDiffNode[]): { added: number; removed: number; changed: number } {
   let added = 0, removed = 0, changed = 0
   function walk(n: XmlDiffNode) {
@@ -205,11 +215,13 @@ function XmlNodeRow({
   depth,
   showOnlyDiff,
   expandOverride,
+  searchQuery,
 }: {
   node: XmlDiffNode
   depth: number
   showOnlyDiff: boolean
   expandOverride?: boolean
+  searchQuery?: string
 }) {
   const [expanded, setExpanded] = useState(true)
 
@@ -217,6 +229,8 @@ function XmlNodeRow({
     if (expandOverride !== undefined) setExpanded(expandOverride)
   }, [expandOverride])
 
+  const q = searchQuery?.toLowerCase() ?? ''
+  if (q && !nodeMatchesSearch(node, q)) return null
   if (showOnlyDiff && node.type === 'same' && !(node.attrs?.some((a) => a.type !== 'same')) && !node.children?.some(hasAnyDiff)) {
     return null
   }
@@ -339,6 +353,7 @@ function XmlNodeRow({
               depth={depth + 1}
               showOnlyDiff={showOnlyDiff}
               expandOverride={expandOverride}
+              searchQuery={searchQuery}
             />
           ))}
           {/* Closing tag */}
@@ -389,8 +404,18 @@ export function XmlMode() {
   const [leftText, setLeftText] = useState('')
   const [rightText, setRightText] = useState('')
   const [showOnlyDiff, setShowOnlyDiff] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const [expandOverride, setExpandOverride] = useState<boolean | undefined>(undefined)
   const [expandKey, setExpandKey] = useState(0)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const l = params.get('l'), r = params.get('r')
+    ;(async () => {
+      if (l) { const t = await decodeText(l); if (t) setLeftText(t) }
+      if (r) { const t = await decodeText(r); if (t) setRightText(t) }
+    })()
+  }, [])
 
   function handleFile(side: 'left' | 'right', file: File) {
     const reader = new FileReader()
@@ -465,6 +490,18 @@ export function XmlMode() {
                 Collapse all
               </button>
               <div className="divider" aria-hidden="true" />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search…"
+                aria-label="Search XML nodes"
+                style={{
+                  height: 26, padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: 11.5,
+                  color: 'var(--text)', background: 'var(--surface-raised)',
+                  border: '1px solid var(--border)', borderRadius: 6, outline: 'none', width: 110,
+                }}
+              />
               <button
                 className="btn outlined"
                 title="Export XML diff report as text"
@@ -537,6 +574,7 @@ export function XmlMode() {
                 depth={0}
                 showOnlyDiff={showOnlyDiff}
                 expandOverride={expandOverride}
+                searchQuery={searchQuery}
               />
             ))}
           </div>

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ModeTabs } from '../../components/mode-tabs'
 import { useTheme } from '../../hooks/use-theme'
 import { MoonIcon, MonitorIcon, SunIcon } from '../../components/icons'
 import { downloadText } from '../../export'
+import { encodeText, decodeText } from '../../share'
 
 // --- JSON diff types ---
 
@@ -245,6 +246,24 @@ export function JsonMode() {
   const [searchQuery, setSearchQuery] = useState('')
   const [expandOverride, setExpandOverride] = useState<boolean | undefined>(undefined)
   const [expandKey, setExpandKey] = useState(0)
+  const [shareCopied, setShareCopied] = useState(false)
+
+  const shareJson = useCallback(async () => {
+    if (!leftText.trim() && !rightText.trim()) return
+    const [encL, encR] = await Promise.all([encodeText(leftText), encodeText(rightText)])
+    await navigator.clipboard.writeText(`${window.location.origin}/json?l=${encodeURIComponent(encL)}&r=${encodeURIComponent(encR)}`)
+    setShareCopied(true)
+    setTimeout(() => setShareCopied(false), 2000)
+  }, [leftText, rightText])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const l = params.get('l'), r = params.get('r')
+    ;(async () => {
+      if (l) { const t = await decodeText(l); if (t) setLeftText(t) }
+      if (r) { const t = await decodeText(r); if (t) setRightText(t) }
+    })()
+  }, [])
 
   const leftJson = useMemo(() => {
     if (!leftText.trim()) { setLeftError(null); return null }
@@ -386,6 +405,14 @@ export function JsonMode() {
             </>
           )}
           <div className="divider" aria-hidden="true" />
+          <button
+            className="btn outlined"
+            title="Copy shareable link to clipboard"
+            disabled={!leftText.trim() && !rightText.trim()}
+            onClick={shareJson}
+          >
+            {shareCopied ? 'Copied!' : 'Share'}
+          </button>
           <button onClick={toggleTheme} className="btn icon">
             {themeMode === 'system' ? <MonitorIcon /> : themeMode === 'dark' ? <SunIcon /> : <MoonIcon />}
           </button>

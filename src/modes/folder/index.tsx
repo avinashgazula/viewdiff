@@ -3,7 +3,7 @@ import { ModeTabs } from '../../components/mode-tabs'
 import { useTheme } from '../../hooks/use-theme'
 import { MoonIcon, MonitorIcon, SunIcon } from '../../components/icons'
 import { downloadText } from '../../export'
-import { encodeDiff } from '../../share'
+import { encodeDiff, encodeText } from '../../share'
 
 type FileStatus = 'same' | 'different' | 'left-only' | 'right-only'
 
@@ -185,16 +185,30 @@ export function FolderMode() {
     return () => { cancelled = true }
   }, [leftFiles, rightFiles])
 
-  function openTextDiff(entry: DiffEntry) {
+  function getFileMode(path: string): 'json' | 'xml' | 'table' | 'text' {
+    const ext = path.split('.').pop()?.toLowerCase() ?? ''
+    if (ext === 'json') return 'json'
+    if (['xml', 'xhtml', 'svg', 'xsd', 'xsl', 'rss', 'atom'].includes(ext)) return 'xml'
+    if (['csv', 'tsv'].includes(ext)) return 'table'
+    return 'text'
+  }
+
+  function openDiff(entry: DiffEntry) {
     if (!entry.leftFile || !entry.rightFile) return
     const readFile = (f: File) => new Promise<string>((res) => {
       const r = new FileReader()
       r.onload = (e) => res(e.target?.result as string)
       r.readAsText(f)
     })
+    const mode = getFileMode(entry.path)
     Promise.all([readFile(entry.leftFile), readFile(entry.rightFile)]).then(async ([l, r]) => {
-      const encoded = await encodeDiff(l, r)
-      window.open(`${window.location.origin}/?d=${encodeURIComponent(encoded)}`, '_blank')
+      if (mode === 'text') {
+        const encoded = await encodeDiff(l, r)
+        window.open(`${window.location.origin}/?d=${encodeURIComponent(encoded)}`, '_blank')
+      } else {
+        const [encL, encR] = await Promise.all([encodeText(l), encodeText(r)])
+        window.open(`${window.location.origin}/${mode}?l=${encodeURIComponent(encL)}&r=${encodeURIComponent(encR)}`, '_blank')
+      }
     })
   }
 
@@ -328,9 +342,10 @@ export function FolderMode() {
             <button
               className="btn"
               style={{ width: '100%', fontSize: 12, height: 30 }}
-              onClick={() => openTextDiff(entry)}
+              onClick={() => openDiff(entry)}
+              title={`Open in ${getFileMode(entry.path).toUpperCase()} diff mode`}
             >
-              Open diff →
+              Open in {getFileMode(entry.path).toUpperCase()} diff →
             </button>
           )}
         </div>
@@ -567,7 +582,7 @@ export function FolderMode() {
                         <button
                           className="btn outlined"
                           style={{ fontSize: 11, height: 24, padding: '0 8px' }}
-                          onClick={(e) => { e.stopPropagation(); openTextDiff(entry) }}
+                          onClick={(e) => { e.stopPropagation(); openDiff(entry) }}
                         >
                           Diff
                         </button>
