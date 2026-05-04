@@ -99,11 +99,14 @@ export function FolderMode() {
   const [progress, setProgress] = useState(0)
   const [filter, setFilter] = useState<FilterStatus>('all')
   const [extFilter, setExtFilter] = useState('')
+  const [pathSearch, setPathSearch] = useState('')
   const [leftName, setLeftName] = useState('')
   const [rightName, setRightName] = useState('')
   const [sortKey, setSortKey] = useState<'name' | 'status' | 'leftSize' | 'rightSize' | 'delta'>('status')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [selectedEntry, setSelectedEntry] = useState<DiffEntry | null>(null)
+  const [groupByDir, setGroupByDir] = useState(false)
+  const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(new Set())
 
   function loadFiles(side: 'left' | 'right', files: FileList) {
     const map = new Map<string, File>()
@@ -236,8 +239,11 @@ export function FolderMode() {
           return byStatus.filter((e) => exts.some((ext) => e.path.toLowerCase().endsWith(ext)))
         })()
       : byStatus
+    const byPath = pathSearch.trim()
+      ? byExt.filter((e) => e.path.toLowerCase().includes(pathSearch.trim().toLowerCase()))
+      : byExt
     const statusOrder: Record<FileStatus, number> = { different: 0, 'left-only': 1, 'right-only': 2, same: 3 }
-    return [...byExt].sort((a, b) => {
+    return [...byPath].sort((a, b) => {
       let cmp = 0
       if (sortKey === 'name') cmp = a.path.localeCompare(b.path)
       else if (sortKey === 'status') cmp = statusOrder[a.status] - statusOrder[b.status] || a.path.localeCompare(b.path)
@@ -253,6 +259,30 @@ export function FolderMode() {
   })()
 
   const hasData = leftFiles.size > 0 || rightFiles.size > 0
+
+  const dirGroups: Array<{ dir: string; entries: DiffEntry[] }> = groupByDir
+    ? (() => {
+        const map = new Map<string, DiffEntry[]>()
+        for (const entry of filtered) {
+          const idx = entry.path.lastIndexOf('/')
+          const dir = idx >= 0 ? entry.path.slice(0, idx) : ''
+          if (!map.has(dir)) map.set(dir, [])
+          map.get(dir)!.push(entry)
+        }
+        return [...map.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([dir, entries]) => ({ dir, entries }))
+      })()
+    : []
+
+  function toggleDir(dir: string) {
+    setCollapsedDirs((prev) => {
+      const next = new Set(prev)
+      if (next.has(dir)) next.delete(dir)
+      else next.add(dir)
+      return next
+    })
+  }
 
   function FileDetailPanel({ entry, onClose }: { entry: DiffEntry; onClose: () => void }) {
     const hashMatch = entry.leftHash !== null && entry.rightHash !== null
@@ -439,6 +469,43 @@ export function FolderMode() {
                   border: '1px solid var(--border)', borderRadius: 6, outline: 'none', width: 110,
                 }}
               />
+              <input
+                type="search"
+                value={pathSearch}
+                onChange={(e) => setPathSearch(e.target.value)}
+                placeholder="Search paths…"
+                aria-label="Search file paths"
+                style={{
+                  height: 26, padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: 11.5,
+                  color: 'var(--text)', background: 'var(--surface-raised)',
+                  border: '1px solid var(--border)', borderRadius: 6, outline: 'none', width: 140,
+                }}
+              />
+              <button
+                className={`btn outlined ${groupByDir ? 'active' : ''}`}
+                title="Group files by directory"
+                onClick={() => setGroupByDir((v) => !v)}
+              >
+                Group by dir
+              </button>
+              {groupByDir && dirGroups.length > 0 && (
+                <>
+                  <button
+                    className="btn outlined"
+                    title="Collapse all directories"
+                    onClick={() => setCollapsedDirs(new Set(dirGroups.map((g) => g.dir)))}
+                  >
+                    Collapse all
+                  </button>
+                  <button
+                    className="btn outlined"
+                    title="Expand all directories"
+                    onClick={() => setCollapsedDirs(new Set())}
+                  >
+                    Expand all
+                  </button>
+                </>
+              )}
               <button
                 className="btn outlined"
                 title="Export comparison report as CSV"
@@ -526,74 +593,176 @@ export function FolderMode() {
                   No files match this filter
                 </div>
               )}
-              {filtered.map((entry) => {
-                const delta = sizeDelta(entry.leftSize, entry.rightSize)
-                const isSelected = selectedEntry?.path === entry.path
-                return (
-                  <div
-                    key={entry.path}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setSelectedEntry(isSelected ? null : entry)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedEntry(isSelected ? null : entry) }}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '24px 1fr 80px 80px 72px 80px 80px',
-                      padding: '6px 16px',
-                      borderBottom: '1px solid var(--border-subtle)',
-                      alignItems: 'center',
-                      fontSize: 13,
-                      cursor: 'pointer',
-                      outline: 'none',
-                      background: isSelected ? 'var(--accent-subtle)'
-                        : entry.status === 'different' ? 'oklch(95% 0.02 80 / 0.4)'
-                        : entry.status === 'left-only' ? 'var(--red-bg)'
-                        : entry.status === 'right-only' ? 'var(--green-bg)'
-                        : 'transparent',
-                      borderLeft: isSelected ? '2px solid var(--accent)' : '2px solid transparent',
-                    }}
-                  >
-                    <StatusBadge status={entry.status} />
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                      {entry.path}
+              {groupByDir ? (
+                dirGroups.map(({ dir, entries: dirEntries }) => {
+                  const isCollapsed = collapsedDirs.has(dir)
+                  const nChanged = dirEntries.filter((e) => e.status !== 'same').length
+                  return (
+                    <div key={dir || '__root__'}>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => toggleDir(dir)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleDir(dir) }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 6,
+                          padding: '5px 16px',
+                          background: 'var(--surface)',
+                          borderBottom: '1px solid var(--border)',
+                          cursor: 'pointer', outline: 'none',
+                          position: 'sticky', top: 0, zIndex: 1,
+                          userSelect: 'none',
+                        }}
+                      >
+                        <span style={{ fontSize: 9, color: 'var(--text-dim)', width: 10, flexShrink: 0 }}>{isCollapsed ? '▶' : '▼'}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                          {dir === '' ? '/' : dir + '/'}
+                        </span>
+                        <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                          {dirEntries.length} {dirEntries.length === 1 ? 'file' : 'files'}
+                        </span>
+                        {nChanged > 0 && (
+                          <span style={{ fontSize: 11, color: 'var(--amber)' }}>· {nChanged} changed</span>
+                        )}
+                      </div>
+                      {!isCollapsed && dirEntries.map((entry) => {
+                        const delta = sizeDelta(entry.leftSize, entry.rightSize)
+                        const isSelected = selectedEntry?.path === entry.path
+                        const basename = entry.path.split('/').pop() ?? entry.path
+                        return (
+                          <div
+                            key={entry.path}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setSelectedEntry(isSelected ? null : entry)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedEntry(isSelected ? null : entry) }}
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '24px 1fr 80px 80px 72px 80px 80px',
+                              padding: '5px 16px 5px 36px',
+                              borderBottom: '1px solid var(--border-subtle)',
+                              alignItems: 'center',
+                              fontSize: 13,
+                              cursor: 'pointer',
+                              outline: 'none',
+                              background: isSelected ? 'var(--accent-subtle)'
+                                : entry.status === 'different' ? 'oklch(95% 0.02 80 / 0.4)'
+                                : entry.status === 'left-only' ? 'var(--red-bg)'
+                                : entry.status === 'right-only' ? 'var(--green-bg)'
+                                : 'transparent',
+                              borderLeft: isSelected ? '2px solid var(--accent)' : '2px solid transparent',
+                            }}
+                          >
+                            <StatusBadge status={entry.status} />
+                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                              {basename}
+                            </div>
+                            <div style={{ textAlign: 'right', fontSize: 11.5, color: 'var(--text-muted)' }}
+                              title={entry.leftModified != null ? `Modified ${formatRelativeTime(entry.leftModified)}` : undefined}
+                            >
+                              {entry.leftSize !== null ? formatSize(entry.leftSize) : '—'}
+                            </div>
+                            <div style={{ textAlign: 'right', fontSize: 11.5, color: 'var(--text-muted)' }}
+                              title={entry.rightModified != null ? `Modified ${formatRelativeTime(entry.rightModified)}` : undefined}
+                            >
+                              {entry.rightSize !== null ? formatSize(entry.rightSize) : '—'}
+                            </div>
+                            <div style={{ textAlign: 'right', fontSize: 11, color: delta ? (delta.startsWith('+') ? 'var(--green)' : 'var(--red)') : 'var(--text-dim)' }}>
+                              {delta ?? (entry.leftSize !== null && entry.rightSize !== null ? '=' : '—')}
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                              <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                                {entry.status === 'same' ? 'Identical'
+                                  : entry.status === 'different' ? 'Changed'
+                                  : entry.status === 'left-only' ? 'Left only'
+                                  : 'Right only'}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                              {entry.status === 'different' && entry.leftFile && entry.rightFile && (
+                                <button
+                                  className="btn outlined"
+                                  style={{ fontSize: 11, height: 24, padding: '0 8px' }}
+                                  onClick={(e) => { e.stopPropagation(); openDiff(entry) }}
+                                >Diff</button>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
+                  )
+                })
+              ) : (
+                filtered.map((entry) => {
+                  const delta = sizeDelta(entry.leftSize, entry.rightSize)
+                  const isSelected = selectedEntry?.path === entry.path
+                  return (
                     <div
-                      style={{ textAlign: 'right', fontSize: 11.5, color: 'var(--text-muted)' }}
-                      title={entry.leftModified != null ? `Modified ${formatRelativeTime(entry.leftModified)}` : undefined}
+                      key={entry.path}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedEntry(isSelected ? null : entry)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedEntry(isSelected ? null : entry) }}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '24px 1fr 80px 80px 72px 80px 80px',
+                        padding: '6px 16px',
+                        borderBottom: '1px solid var(--border-subtle)',
+                        alignItems: 'center',
+                        fontSize: 13,
+                        cursor: 'pointer',
+                        outline: 'none',
+                        background: isSelected ? 'var(--accent-subtle)'
+                          : entry.status === 'different' ? 'oklch(95% 0.02 80 / 0.4)'
+                          : entry.status === 'left-only' ? 'var(--red-bg)'
+                          : entry.status === 'right-only' ? 'var(--green-bg)'
+                          : 'transparent',
+                        borderLeft: isSelected ? '2px solid var(--accent)' : '2px solid transparent',
+                      }}
                     >
-                      {entry.leftSize !== null ? formatSize(entry.leftSize) : '—'}
+                      <StatusBadge status={entry.status} />
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                        {entry.path}
+                      </div>
+                      <div
+                        style={{ textAlign: 'right', fontSize: 11.5, color: 'var(--text-muted)' }}
+                        title={entry.leftModified != null ? `Modified ${formatRelativeTime(entry.leftModified)}` : undefined}
+                      >
+                        {entry.leftSize !== null ? formatSize(entry.leftSize) : '—'}
+                      </div>
+                      <div
+                        style={{ textAlign: 'right', fontSize: 11.5, color: 'var(--text-muted)' }}
+                        title={entry.rightModified != null ? `Modified ${formatRelativeTime(entry.rightModified)}` : undefined}
+                      >
+                        {entry.rightSize !== null ? formatSize(entry.rightSize) : '—'}
+                      </div>
+                      <div style={{ textAlign: 'right', fontSize: 11, color: delta ? (delta.startsWith('+') ? 'var(--green)' : 'var(--red)') : 'var(--text-dim)' }}>
+                        {delta ?? (entry.leftSize !== null && entry.rightSize !== null ? '=' : '—')}
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                          {entry.status === 'same' ? 'Identical'
+                            : entry.status === 'different' ? 'Changed'
+                            : entry.status === 'left-only' ? 'Left only'
+                            : 'Right only'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        {entry.status === 'different' && entry.leftFile && entry.rightFile && (
+                          <button
+                            className="btn outlined"
+                            style={{ fontSize: 11, height: 24, padding: '0 8px' }}
+                            onClick={(e) => { e.stopPropagation(); openDiff(entry) }}
+                          >
+                            Diff
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div
-                      style={{ textAlign: 'right', fontSize: 11.5, color: 'var(--text-muted)' }}
-                      title={entry.rightModified != null ? `Modified ${formatRelativeTime(entry.rightModified)}` : undefined}
-                    >
-                      {entry.rightSize !== null ? formatSize(entry.rightSize) : '—'}
-                    </div>
-                    <div style={{ textAlign: 'right', fontSize: 11, color: delta ? (delta.startsWith('+') ? 'var(--green)' : 'var(--red)') : 'var(--text-dim)' }}>
-                      {delta ?? (entry.leftSize !== null && entry.rightSize !== null ? '=' : '—')}
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-                        {entry.status === 'same' ? 'Identical'
-                          : entry.status === 'different' ? 'Changed'
-                          : entry.status === 'left-only' ? 'Left only'
-                          : 'Right only'}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                      {entry.status === 'different' && entry.leftFile && entry.rightFile && (
-                        <button
-                          className="btn outlined"
-                          style={{ fontSize: 11, height: 24, padding: '0 8px' }}
-                          onClick={(e) => { e.stopPropagation(); openDiff(entry) }}
-                        >
-                          Diff
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
+                  )
+                })
+              )}
             </div>
             {selectedEntry && (
               <FileDetailPanel entry={selectedEntry} onClose={() => setSelectedEntry(null)} />

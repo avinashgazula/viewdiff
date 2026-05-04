@@ -18,6 +18,7 @@ const JsonMode = lazy(() => import('./modes/json').then((m) => ({ default: m.Jso
 const XmlMode = lazy(() => import('./modes/xml').then((m) => ({ default: m.XmlMode })))
 const EnvMode = lazy(() => import('./modes/env').then((m) => ({ default: m.EnvMode })))
 const YamlMode = lazy(() => import('./modes/yaml').then((m) => ({ default: m.YamlMode })))
+const ZipMode = lazy(() => import('./modes/zip').then((m) => ({ default: m.ZipMode })))
 
 function ModeSuspense({ children }: { children: React.ReactNode }) {
   return (
@@ -112,6 +113,12 @@ const yamlRoute = createRoute({
   component: () => <ModeSuspense><YamlMode /></ModeSuspense>,
 })
 
+const zipRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/zip',
+  component: () => <ModeSuspense><ZipMode /></ModeSuspense>,
+})
+
 const routeTree = rootRoute.addChildren([
   tableRoute,
   imageRoute,
@@ -123,6 +130,7 @@ const routeTree = rootRoute.addChildren([
   xmlRoute,
   envRoute,
   yamlRoute,
+  zipRoute,
   ...pageRoutes,
   catchAllRoute,
 ])

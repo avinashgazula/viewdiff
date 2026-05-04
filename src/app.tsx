@@ -724,7 +724,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
 
   // --- Command palette ---
 
-  const MODE_PATHS = ['/','table','json','yaml','xml','env','image','git','hex','folder','three-way']
+  const MODE_PATHS = ['/','table','json','yaml','xml','env','image','git','hex','folder','zip','three-way']
 
   const navigateMode = useCallback((idx: number) => {
     const p = MODE_PATHS[idx]
