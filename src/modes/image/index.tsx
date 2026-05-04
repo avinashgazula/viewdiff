@@ -189,9 +189,10 @@ function ImageCanvas({ imageData, label, zoom, pan, onPan, onHover, onLeave }: {
   }, [imageData])
 
   return (
-    <div style={{ flex: 1, overflow: 'hidden', position: 'relative', background: 'var(--bg)' }}>
+    <div className="image-viewport" style={{ flex: 1, overflow: 'hidden', position: 'relative', background: 'var(--bg)' }}>
       <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 10, fontSize: 10.5, fontWeight: 650, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', padding: '2px 6px', background: 'var(--surface)', borderRadius: 4, border: '1px solid var(--border)' }}>{label}</div>
       <div
+        className="image-viewport"
         style={{ width: '100%', height: '100%', overflow: 'hidden', cursor: 'grab' }}
         onMouseDown={(e) => { dragging.current = true; lastPos.current = { x: e.clientX, y: e.clientY } }}
         onMouseMove={(e) => {
@@ -283,6 +284,19 @@ export function ImageMode() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  // Mouse wheel zoom
+  useEffect(() => {
+    function handleWheel(e: WheelEvent) {
+      const target = e.target as HTMLElement
+      if (!target.closest('.image-viewport')) return
+      e.preventDefault()
+      const delta = e.deltaY < 0 ? 1.15 : 1 / 1.15
+      setZoom((z) => Math.max(0.05, Math.min(8, z * delta)))
+    }
+    window.addEventListener('wheel', handleWheel, { passive: false })
+    return () => window.removeEventListener('wheel', handleWheel)
   }, [])
 
   // Blend canvas
@@ -469,7 +483,7 @@ export function ImageMode() {
                 <div style={{ position: 'absolute', top: 8, right: 8, background: 'var(--surface)', borderRadius: 4, padding: '2px 6px', fontSize: 10.5, fontWeight: 650, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', border: '1px solid var(--border)' }}>Modified</div>
               </div>
             ) : overlayMode === 'blend' ? (
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              <div className="image-viewport" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                 <canvas
                   ref={blendCanvasRef}
                   style={{

@@ -91,11 +91,24 @@ function JsonValue({ val, type }: { val: unknown; type: DiffType }) {
   return <span style={{ color: 'var(--text-dim)' }}>{"{"}{Object.keys(val as object).length} keys{"}"}</span>
 }
 
-function DiffNodeRow({ node, depth, showOnly, filterType }: {
+function nodeMatchesSearch(node: DiffNode, q: string): boolean {
+  if (!q) return true
+  const ql = q.toLowerCase()
+  if (String(node.key).toLowerCase().includes(ql)) return true
+  if (node.children.length === 0) {
+    const lv = JSON.stringify(node.leftVal) ?? ''
+    const rv = JSON.stringify(node.rightVal) ?? ''
+    if (lv.toLowerCase().includes(ql) || rv.toLowerCase().includes(ql)) return true
+  }
+  return node.children.some((c) => nodeMatchesSearch(c, q))
+}
+
+function DiffNodeRow({ node, depth, showOnly, filterType, searchQuery }: {
   node: DiffNode
   depth: number
   showOnly: 'all' | 'changes'
   filterType: DiffType | null
+  searchQuery: string
 }) {
   const [expanded, setExpanded] = useState(true)
   const hasChildren = node.children.length > 0
@@ -107,6 +120,7 @@ function DiffNodeRow({ node, depth, showOnly, filterType }: {
   const skipFilter = filterType !== null && effectiveType !== filterType && effectiveType !== 'modified' && effectiveType !== 'same'
   if (skipSame) return null
   if (skipFilter && !hasChildren) return null
+  if (searchQuery && !nodeMatchesSearch(node, searchQuery)) return null
 
   const hasDiffChildren = hasChildren && node.children.some((c) => c.type !== 'same')
 
@@ -179,7 +193,7 @@ function DiffNodeRow({ node, depth, showOnly, filterType }: {
         )}
       </div>
       {expanded && node.children.map((child, i) => (
-        <DiffNodeRow key={i} node={child} depth={depth + 1} showOnly={showOnly} filterType={filterType} />
+        <DiffNodeRow key={i} node={child} depth={depth + 1} showOnly={showOnly} filterType={filterType} searchQuery={searchQuery} />
       ))}
     </>
   )
@@ -202,6 +216,16 @@ function countDiffs(node: DiffNode): { added: number; removed: number; changed: 
 
 // --- Mode component ---
 
+function sortKeysDeep(val: unknown): unknown {
+  if (Array.isArray(val)) return val.map(sortKeysDeep)
+  if (val !== null && typeof val === 'object') {
+    const sorted: Record<string, unknown> = {}
+    for (const k of Object.keys(val as object).sort()) sorted[k] = sortKeysDeep((val as Record<string, unknown>)[k])
+    return sorted
+  }
+  return val
+}
+
 export function JsonMode() {
   const { mode: themeMode, toggle: toggleTheme } = useTheme()
   const [leftText, setLeftText] = useState('')
@@ -210,6 +234,8 @@ export function JsonMode() {
   const [filterType, setFilterType] = useState<DiffType | null>(null)
   const [leftError, setLeftError] = useState<string | null>(null)
   const [rightError, setRightError] = useState<string | null>(null)
+  const [sortKeys, setSortKeys] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const leftJson = useMemo(() => {
     if (!leftText.trim()) { setLeftError(null); return null }
@@ -225,8 +251,10 @@ export function JsonMode() {
 
   const diffRoot = useMemo(() => {
     if (leftJson === null && rightJson === null) return null
-    return jsonDiff(leftJson ?? undefined, rightJson ?? undefined, 'root')
-  }, [leftJson, rightJson])
+    const l = sortKeys ? sortKeysDeep(leftJson ?? undefined) : (leftJson ?? undefined)
+    const r = sortKeys ? sortKeysDeep(rightJson ?? undefined) : (rightJson ?? undefined)
+    return jsonDiff(l, r, 'root')
+  }, [leftJson, rightJson, sortKeys])
 
   const diffStats = useMemo(() => diffRoot ? countDiffs(diffRoot) : null, [diffRoot])
 
@@ -314,6 +342,27 @@ export function JsonMode() {
                 {showOnly === 'changes' ? 'Show all' : 'Changes only'}
               </button>
               <button className="btn outlined" onClick={exportReport}>Export</button>
+            </>
+          )}
+          {hasBoth && (
+            <>
+              <div className="divider" aria-hidden="true" />
+              <button
+                className={`btn outlined ${sortKeys ? 'active' : ''}`}
+                title="Sort object keys alphabetically before comparing"
+                onClick={() => setSortKeys((v) => !v)}
+              >Sort keys</button>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search keys/values…"
+                style={{
+                  height: 26, padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: 11.5,
+                  color: 'var(--text)', background: 'var(--surface-raised)',
+                  border: '1px solid var(--border)', borderRadius: 6, outline: 'none', width: 160,
+                }}
+              />
             </>
           )}
           <div className="divider" aria-hidden="true" />
@@ -411,7 +460,7 @@ export function JsonMode() {
                 Modified
               </div>
             </div>
-            <DiffNodeRow node={diffRoot} depth={0} showOnly={showOnly} filterType={filterType} />
+            <DiffNodeRow node={diffRoot} depth={0} showOnly={showOnly} filterType={filterType} searchQuery={searchQuery} />
           </div>
         ) : (
           !leftError && !rightError && (

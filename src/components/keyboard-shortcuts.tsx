@@ -19,7 +19,7 @@ const GROUPS: ShortcutGroup[] = [
       { keys: 'Ctrl+?', label: 'Keyboard shortcuts' },
       { keys: 'Ctrl+G', label: 'Go to line' },
       { keys: 'Ctrl+J', label: 'Cycle theme' },
-      { keys: 'Alt+1–7', label: 'Navigate modes' },
+      { keys: 'Alt+1–8', label: 'Navigate modes (Text/Table/JSON/Image/Git/Hex/Folder/3-Way)' },
     ],
   },
   {
@@ -58,6 +58,24 @@ const GROUPS: ShortcutGroup[] = [
       { keys: 'Ctrl+Alt+↑', label: 'Previous conflict' },
       { keys: 'Ctrl+Shift+L', label: 'Accept left at cursor' },
       { keys: 'Ctrl+Shift+R', label: 'Accept right at cursor' },
+    ],
+  },
+  {
+    title: 'Image mode',
+    items: [
+      { keys: 'Scroll wheel', label: 'Zoom in / out' },
+      { keys: '+  /  −', label: 'Zoom in / out (keyboard)' },
+      { keys: '0', label: 'Fit to view (50%)' },
+      { keys: '1', label: 'Reset to 100%' },
+      { keys: '2', label: 'Zoom to 200%' },
+    ],
+  },
+  {
+    title: 'Hex mode',
+    items: [
+      { keys: 'F7 / Shift+F7', label: 'Next / previous diff region' },
+      { keys: 'Enter (offset box)', label: 'Jump to hex offset' },
+      { keys: 'Enter (find box)', label: 'Find bytes / text' },
     ],
   },
 ]
