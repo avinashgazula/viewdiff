@@ -19,6 +19,7 @@ const XmlMode = lazy(() => import('./modes/xml').then((m) => ({ default: m.XmlMo
 const EnvMode = lazy(() => import('./modes/env').then((m) => ({ default: m.EnvMode })))
 const YamlMode = lazy(() => import('./modes/yaml').then((m) => ({ default: m.YamlMode })))
 const ZipMode = lazy(() => import('./modes/zip').then((m) => ({ default: m.ZipMode })))
+const MarkdownMode = lazy(() => import('./modes/markdown').then((m) => ({ default: m.MarkdownMode })))
 
 function ModeSuspense({ children }: { children: React.ReactNode }) {
   return (
@@ -119,6 +120,12 @@ const zipRoute = createRoute({
   component: () => <ModeSuspense><ZipMode /></ModeSuspense>,
 })
 
+const markdownRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/markdown',
+  component: () => <ModeSuspense><MarkdownMode /></ModeSuspense>,
+})
+
 const routeTree = rootRoute.addChildren([
   tableRoute,
   imageRoute,
@@ -131,6 +138,7 @@ const routeTree = rootRoute.addChildren([
   envRoute,
   yamlRoute,
   zipRoute,
+  markdownRoute,
   ...pageRoutes,
   catchAllRoute,
 ])
