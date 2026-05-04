@@ -312,6 +312,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
     if (patch) downloadText(patch, 'changes.patch')
   }, [])
 
+
   const exportHtml = useCallback(() => {
     const orig = origEditorRef.current
     const mod = modEditorRef.current

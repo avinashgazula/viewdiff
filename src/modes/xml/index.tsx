@@ -210,6 +210,11 @@ const DIFF_FG: Record<DiffType, string> = {
   removed: 'var(--red)',
 }
 
+function formatXPath(path: string): string {
+  // Convert 0-based indices to 1-based XPath: root/elem[0] → /root/elem[1]
+  return '/' + path.replace(/\[(\d+)\]/g, (_, n) => `[${Number(n) + 1}]`)
+}
+
 function XmlNodeRow({
   node,
   depth,
@@ -224,10 +229,19 @@ function XmlNodeRow({
   searchQuery?: string
 }) {
   const [expanded, setExpanded] = useState(true)
+  const [pathCopied, setPathCopied] = useState(false)
 
   useEffect(() => {
     if (expandOverride !== undefined) setExpanded(expandOverride)
   }, [expandOverride])
+
+  function copyPath(e: React.MouseEvent) {
+    e.stopPropagation()
+    navigator.clipboard.writeText(formatXPath(node.path)).then(() => {
+      setPathCopied(true)
+      setTimeout(() => setPathCopied(false), 1200)
+    })
+  }
 
   const q = searchQuery?.toLowerCase() ?? ''
   if (q && !nodeMatchesSearch(node, q)) return null
@@ -308,7 +322,13 @@ function XmlNodeRow({
           {hasChildren ? (expanded ? '▾' : '▸') : ''}
         </span>
         <span style={{ color: 'var(--text-dim)' }}>{'<'}</span>
-        <span style={{ color: tagColor, fontWeight: 550 }}>{node.tagName}</span>
+        <span
+          style={{ color: pathCopied ? 'var(--accent)' : tagColor, fontWeight: 550, cursor: 'copy' }}
+          title={`Click to copy XPath: ${formatXPath(node.path)}`}
+          onClick={copyPath}
+        >
+          {pathCopied ? '✓' : node.tagName}
+        </span>
 
         {node.attrs && node.attrs.map((a) => {
           const ac = a.type === 'same' ? 'var(--text-dim)' : DIFF_FG[a.type]
