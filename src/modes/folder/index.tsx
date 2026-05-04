@@ -185,11 +185,13 @@ export function FolderMode() {
     return () => { cancelled = true }
   }, [leftFiles, rightFiles])
 
-  function getFileMode(path: string): 'json' | 'xml' | 'table' | 'text' {
-    const ext = path.split('.').pop()?.toLowerCase() ?? ''
+  function getFileMode(path: string): 'json' | 'xml' | 'env' | 'table' | 'text' {
+    const filename = path.split('/').pop()?.toLowerCase() ?? ''
+    const ext = filename.split('.').pop() ?? ''
     if (ext === 'json') return 'json'
     if (['xml', 'xhtml', 'svg', 'xsd', 'xsl', 'rss', 'atom'].includes(ext)) return 'xml'
     if (['csv', 'tsv'].includes(ext)) return 'table'
+    if (['env', 'ini', 'properties', 'cfg', 'conf'].includes(ext) || filename.startsWith('.env')) return 'env'
     return 'text'
   }
 

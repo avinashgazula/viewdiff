@@ -111,8 +111,18 @@ function DiffNodeRow({ node, depth, showOnly, filterType, searchQuery, expandOve
   filterType: DiffType | null
   searchQuery: string
   expandOverride?: boolean
+  path?: string
 }) {
   const [localExpanded, setLocalExpanded] = useState(true)
+  const [keyCopied, setKeyCopied] = useState(false)
+
+  function copyPath() {
+    const fullPath = path ?? String(node.key)
+    navigator.clipboard.writeText(fullPath).then(() => {
+      setKeyCopied(true)
+      setTimeout(() => setKeyCopied(false), 1200)
+    })
+  }
 
   useEffect(() => {
     if (expandOverride !== undefined) setLocalExpanded(expandOverride)
@@ -145,7 +155,13 @@ function DiffNodeRow({ node, depth, showOnly, filterType, searchQuery, expandOve
       }}>
         {/* Left */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '4px 8px', paddingLeft: indent + 8, borderRight: '1px solid var(--border-subtle)', gap: 6 }}>
-          <span style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 11, minWidth: 20 }}>{node.key}</span>
+          <span
+            style={{ color: keyCopied ? 'var(--accent)' : 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 11, minWidth: 20, cursor: 'copy' }}
+            title={`Click to copy path: ${path ?? node.key}`}
+            onClick={copyPath}
+          >
+            {keyCopied ? '✓' : node.key}
+          </span>
           <span style={{ fontSize: 11.5, fontFamily: 'var(--font-mono)' }}>
             {effectiveType !== 'added' ? <JsonValue val={node.leftVal} type={effectiveType} /> : <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>—</span>}
           </span>
@@ -187,7 +203,13 @@ function DiffNodeRow({ node, depth, showOnly, filterType, searchQuery, expandOve
         }}
       >
         <span style={{ color: 'var(--text-dim)', fontSize: 10, width: 12, textAlign: 'center', flexShrink: 0 }}>{expanded ? '▼' : '▶'}</span>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)', minWidth: 20 }}>{node.key}</span>
+        <span
+          style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: keyCopied ? 'var(--accent)' : 'var(--text-dim)', minWidth: 20, cursor: 'copy' }}
+          title={`Click to copy path: ${path ?? node.key}`}
+          onClick={(e) => { e.stopPropagation(); copyPath() }}
+        >
+          {keyCopied ? '✓' : node.key}
+        </span>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--text-secondary)' }}>
           {prefix}
           <span style={{ color: 'var(--text-dim)', fontSize: 10.5 }}> {node.children.length} </span>
@@ -200,9 +222,13 @@ function DiffNodeRow({ node, depth, showOnly, filterType, searchQuery, expandOve
           </span>
         )}
       </div>
-      {expanded && node.children.map((child, i) => (
-        <DiffNodeRow key={i} node={child} depth={depth + 1} showOnly={showOnly} filterType={filterType} searchQuery={searchQuery} expandOverride={expandOverride} />
-      ))}
+      {expanded && node.children.map((child, i) => {
+        const myPath = path ?? String(node.key)
+        const childPath = node.isArray ? `${myPath}[${child.key}]` : `${myPath}.${child.key}`
+        return (
+          <DiffNodeRow key={i} node={child} depth={depth + 1} showOnly={showOnly} filterType={filterType} searchQuery={searchQuery} expandOverride={expandOverride} path={childPath} />
+        )
+      })}
     </>
   )
 }
@@ -507,7 +533,7 @@ export function JsonMode() {
                 Modified
               </div>
             </div>
-            <DiffNodeRow key={expandKey} node={diffRoot} depth={0} showOnly={showOnly} filterType={filterType} searchQuery={searchQuery} expandOverride={expandOverride} />
+            <DiffNodeRow key={expandKey} node={diffRoot} depth={0} showOnly={showOnly} filterType={filterType} searchQuery={searchQuery} expandOverride={expandOverride} path="root" />
           </div>
         ) : (
           !leftError && !rightError && (

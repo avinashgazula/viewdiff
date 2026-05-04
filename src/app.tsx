@@ -723,7 +723,7 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
 
   // --- Command palette ---
 
-  const MODE_PATHS = ['/','table','json','xml','image','git','hex','folder','three-way']
+  const MODE_PATHS = ['/','table','json','xml','env','image','git','hex','folder','three-way']
 
   const navigateMode = useCallback((idx: number) => {
     const p = MODE_PATHS[idx]
@@ -794,9 +794,9 @@ export function App({ defaultLanguage = 'auto', initialOriginal, initialModified
       { test: (e) => (e.ctrlKey || e.metaKey) && e.altKey && e.key === 'ArrowRight', action: acceptHunkFromModified },
       { test: (e) => e.key === 'F7' && !e.shiftKey, action: nextDiff },
       { test: (e) => e.key === 'F7' && e.shiftKey, action: prevDiff },
-      // Alt+1–9 navigate modes
-      ...([0,1,2,3,4,5,6,7,8] as const).map((i) => ({
-        test: (e: KeyboardEvent) => e.altKey && e.key === String(i + 1),
+      // Alt+1–0 navigate modes (0 = mode 10)
+      ...([0,1,2,3,4,5,6,7,8,9] as const).map((i) => ({
+        test: (e: KeyboardEvent) => e.altKey && e.key === (i === 9 ? '0' : String(i + 1)),
         action: () => navigateMode(i),
       })),
     ]

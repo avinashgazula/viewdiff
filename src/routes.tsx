@@ -16,6 +16,7 @@ const FolderMode = lazy(() => import('./modes/folder').then((m) => ({ default: m
 const ThreeWayMode = lazy(() => import('./modes/three-way').then((m) => ({ default: m.ThreeWayMode })))
 const JsonMode = lazy(() => import('./modes/json').then((m) => ({ default: m.JsonMode })))
 const XmlMode = lazy(() => import('./modes/xml').then((m) => ({ default: m.XmlMode })))
+const EnvMode = lazy(() => import('./modes/env').then((m) => ({ default: m.EnvMode })))
 
 function ModeSuspense({ children }: { children: React.ReactNode }) {
   return (
@@ -98,6 +99,12 @@ const catchAllRoute = createRoute({
   component: () => <DiffPage slug="/" />,
 })
 
+const envRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/env',
+  component: () => <ModeSuspense><EnvMode /></ModeSuspense>,
+})
+
 const routeTree = rootRoute.addChildren([
   tableRoute,
   imageRoute,
@@ -107,6 +114,7 @@ const routeTree = rootRoute.addChildren([
   threeWayRoute,
   jsonRoute,
   xmlRoute,
+  envRoute,
   ...pageRoutes,
   catchAllRoute,
 ])
