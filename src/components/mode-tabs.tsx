@@ -13,10 +13,11 @@ const MODES = [
   { path: '/hex', label: 'Hex' },
   { path: '/folder', label: 'Folder' },
   { path: '/zip', label: 'ZIP' },
+  { path: '/notebook', label: 'Notebook' },
   { path: '/three-way', label: '3-Way' },
 ] as const
 
-const MODE_PATHS = new Set(['/table', '/json', '/yaml', '/xml', '/markdown', '/env', '/image', '/git', '/hex', '/folder', '/zip', '/three-way'])
+const MODE_PATHS = new Set(['/table', '/json', '/yaml', '/xml', '/markdown', '/env', '/image', '/git', '/hex', '/folder', '/zip', '/notebook', '/three-way'])
 
 export function ModeTabs() {
   const location = useLocation()

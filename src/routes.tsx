@@ -20,6 +20,7 @@ const EnvMode = lazy(() => import('./modes/env').then((m) => ({ default: m.EnvMo
 const YamlMode = lazy(() => import('./modes/yaml').then((m) => ({ default: m.YamlMode })))
 const ZipMode = lazy(() => import('./modes/zip').then((m) => ({ default: m.ZipMode })))
 const MarkdownMode = lazy(() => import('./modes/markdown').then((m) => ({ default: m.MarkdownMode })))
+const NotebookMode = lazy(() => import('./modes/notebook').then((m) => ({ default: m.NotebookMode })))
 
 function ModeSuspense({ children }: { children: React.ReactNode }) {
   return (
@@ -126,6 +127,12 @@ const markdownRoute = createRoute({
   component: () => <ModeSuspense><MarkdownMode /></ModeSuspense>,
 })
 
+const notebookRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/notebook',
+  component: () => <ModeSuspense><NotebookMode /></ModeSuspense>,
+})
+
 const routeTree = rootRoute.addChildren([
   tableRoute,
   imageRoute,
@@ -139,6 +146,7 @@ const routeTree = rootRoute.addChildren([
   yamlRoute,
   zipRoute,
   markdownRoute,
+  notebookRoute,
   ...pageRoutes,
   catchAllRoute,
 ])
