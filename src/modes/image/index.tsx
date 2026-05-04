@@ -415,22 +415,40 @@ export function ImageMode() {
             </button>
           )}
 
-          {diffResult && (
+          {hasBoth && (
             <button
               className="btn outlined"
-              title="Download diff image as PNG"
+              title="Download current view as PNG"
               onClick={() => {
-                const imgData = overlayMode === 'blend' ? null
-                  : overlayMode === 'difference' ? diffResult.differenceImageData
-                  : overlayMode === 'highlight' ? diffResult.highlightImageData
-                  : null
-                if (!imgData) return
-                const c = document.createElement('canvas')
-                c.width = imgData.width; c.height = imgData.height
-                c.getContext('2d')!.putImageData(imgData, 0, 0)
+                let dataUrl: string | null = null
+
+                if (overlayMode === 'blend' && blendCanvasRef.current) {
+                  dataUrl = blendCanvasRef.current.toDataURL('image/png')
+                } else if (overlayMode === 'difference' && diffResult) {
+                  const c = document.createElement('canvas')
+                  c.width = diffResult.differenceImageData.width; c.height = diffResult.differenceImageData.height
+                  c.getContext('2d')!.putImageData(diffResult.differenceImageData, 0, 0)
+                  dataUrl = c.toDataURL('image/png')
+                } else if (overlayMode === 'highlight' && diffResult) {
+                  const c = document.createElement('canvas')
+                  c.width = diffResult.highlightImageData.width; c.height = diffResult.highlightImageData.height
+                  c.getContext('2d')!.putImageData(diffResult.highlightImageData, 0, 0)
+                  dataUrl = c.toDataURL('image/png')
+                } else if (leftImage && rightImage) {
+                  const w = leftImage.width + rightImage.width + 2
+                  const h = Math.max(leftImage.height, rightImage.height)
+                  const c = document.createElement('canvas')
+                  c.width = w; c.height = h
+                  const ctx = c.getContext('2d')!
+                  ctx.putImageData(leftImage.data, 0, 0)
+                  ctx.putImageData(rightImage.data, leftImage.width + 2, 0)
+                  dataUrl = c.toDataURL('image/png')
+                }
+
+                if (!dataUrl) return
                 const a = document.createElement('a')
                 a.download = `diff-${overlayMode}.png`
-                a.href = c.toDataURL('image/png')
+                a.href = dataUrl
                 a.click()
               }}
             >

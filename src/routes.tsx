@@ -17,6 +17,7 @@ const ThreeWayMode = lazy(() => import('./modes/three-way').then((m) => ({ defau
 const JsonMode = lazy(() => import('./modes/json').then((m) => ({ default: m.JsonMode })))
 const XmlMode = lazy(() => import('./modes/xml').then((m) => ({ default: m.XmlMode })))
 const EnvMode = lazy(() => import('./modes/env').then((m) => ({ default: m.EnvMode })))
+const YamlMode = lazy(() => import('./modes/yaml').then((m) => ({ default: m.YamlMode })))
 
 function ModeSuspense({ children }: { children: React.ReactNode }) {
   return (
@@ -105,6 +106,12 @@ const envRoute = createRoute({
   component: () => <ModeSuspense><EnvMode /></ModeSuspense>,
 })
 
+const yamlRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/yaml',
+  component: () => <ModeSuspense><YamlMode /></ModeSuspense>,
+})
+
 const routeTree = rootRoute.addChildren([
   tableRoute,
   imageRoute,
@@ -115,6 +122,7 @@ const routeTree = rootRoute.addChildren([
   jsonRoute,
   xmlRoute,
   envRoute,
+  yamlRoute,
   ...pageRoutes,
   catchAllRoute,
 ])
