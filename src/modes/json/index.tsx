@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ModeTabs } from '../../components/mode-tabs'
 import { useTheme } from '../../hooks/use-theme'
 import { MoonIcon, MonitorIcon, SunIcon } from '../../components/icons'
@@ -103,14 +103,21 @@ function nodeMatchesSearch(node: DiffNode, q: string): boolean {
   return node.children.some((c) => nodeMatchesSearch(c, q))
 }
 
-function DiffNodeRow({ node, depth, showOnly, filterType, searchQuery }: {
+function DiffNodeRow({ node, depth, showOnly, filterType, searchQuery, expandOverride }: {
   node: DiffNode
   depth: number
   showOnly: 'all' | 'changes'
   filterType: DiffType | null
   searchQuery: string
+  expandOverride?: boolean
 }) {
-  const [expanded, setExpanded] = useState(true)
+  const [localExpanded, setLocalExpanded] = useState(true)
+
+  useEffect(() => {
+    if (expandOverride !== undefined) setLocalExpanded(expandOverride)
+  }, [expandOverride])
+
+  const expanded = localExpanded
   const hasChildren = node.children.length > 0
   const isLeaf = !hasChildren
   const indent = depth * 18
@@ -166,8 +173,8 @@ function DiffNodeRow({ node, depth, showOnly, filterType, searchQuery }: {
       <div
         role="button"
         tabIndex={0}
-        onClick={() => setExpanded((v) => !v)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setExpanded((v) => !v) }}
+        onClick={() => setLocalExpanded((v) => !v)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setLocalExpanded((v) => !v) }}
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '4px 8px', paddingLeft: indent + 8,
@@ -193,7 +200,7 @@ function DiffNodeRow({ node, depth, showOnly, filterType, searchQuery }: {
         )}
       </div>
       {expanded && node.children.map((child, i) => (
-        <DiffNodeRow key={i} node={child} depth={depth + 1} showOnly={showOnly} filterType={filterType} searchQuery={searchQuery} />
+        <DiffNodeRow key={i} node={child} depth={depth + 1} showOnly={showOnly} filterType={filterType} searchQuery={searchQuery} expandOverride={expandOverride} />
       ))}
     </>
   )
@@ -236,6 +243,8 @@ export function JsonMode() {
   const [rightError, setRightError] = useState<string | null>(null)
   const [sortKeys, setSortKeys] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [expandOverride, setExpandOverride] = useState<boolean | undefined>(undefined)
+  const [expandKey, setExpandKey] = useState(0)
 
   const leftJson = useMemo(() => {
     if (!leftText.trim()) { setLeftError(null); return null }
@@ -346,6 +355,17 @@ export function JsonMode() {
           )}
           {hasBoth && (
             <>
+              <div className="divider" aria-hidden="true" />
+              <button
+                className="btn outlined"
+                title="Expand all nodes"
+                onClick={() => { setExpandKey((k) => k + 1); setExpandOverride(true) }}
+              >Expand all</button>
+              <button
+                className="btn outlined"
+                title="Collapse all nodes"
+                onClick={() => { setExpandKey((k) => k + 1); setExpandOverride(false) }}
+              >Collapse all</button>
               <div className="divider" aria-hidden="true" />
               <button
                 className={`btn outlined ${sortKeys ? 'active' : ''}`}
@@ -460,7 +480,7 @@ export function JsonMode() {
                 Modified
               </div>
             </div>
-            <DiffNodeRow node={diffRoot} depth={0} showOnly={showOnly} filterType={filterType} searchQuery={searchQuery} />
+            <DiffNodeRow key={expandKey} node={diffRoot} depth={0} showOnly={showOnly} filterType={filterType} searchQuery={searchQuery} expandOverride={expandOverride} />
           </div>
         ) : (
           !leftError && !rightError && (

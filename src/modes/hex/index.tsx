@@ -45,9 +45,10 @@ interface HexRowProps {
   diffBytes: Uint8Array
   diffMask: Uint8Array
   side: 'left' | 'right'
+  onHoverByte?: (offset: number | null) => void
 }
 
-function HexRow({ offset, bytes, diffBytes, diffMask, side }: HexRowProps) {
+function HexRow({ offset, bytes, diffBytes, diffMask, side, onHoverByte }: HexRowProps) {
   const cells: React.ReactNode[] = []
   const ascii: React.ReactNode[] = []
 
@@ -65,11 +66,16 @@ function HexRow({ offset, bytes, diffBytes, diffMask, side }: HexRowProps) {
       : 'transparent'
 
     cells.push(
-      <span key={i} style={{
-        color, background: bg, borderRadius: 2, padding: '0 1px',
-        fontFamily: 'var(--font-mono)', fontSize: 12,
-        opacity: isPresent ? 1 : 0.2,
-      }}>
+      <span
+        key={i}
+        style={{
+          color, background: bg, borderRadius: 2, padding: '0 1px',
+          fontFamily: 'var(--font-mono)', fontSize: 12,
+          opacity: isPresent ? 1 : 0.2, cursor: isPresent ? 'default' : undefined,
+        }}
+        onMouseEnter={() => isPresent && onHoverByte?.(byteIdx)}
+        onMouseLeave={() => onHoverByte?.(null)}
+      >
         {toHex2(val)}
       </span>,
     )
@@ -107,13 +113,14 @@ function HexRow({ offset, bytes, diffBytes, diffMask, side }: HexRowProps) {
   )
 }
 
-function VirtualHexDump({ diff, side, containerHeight, jumpToOffset, onContainerReady, onSyncScroll }: {
+function VirtualHexDump({ diff, side, containerHeight, jumpToOffset, onContainerReady, onSyncScroll, onHoverByte }: {
   diff: HexDiff
   side: 'left' | 'right'
   containerHeight: number
   jumpToOffset?: number
   onContainerReady?: (el: HTMLDivElement) => void
   onSyncScroll?: (top: number) => void
+  onHoverByte?: (offset: number | null) => void
 }) {
   const [scrollTop, setScrollTop] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -158,6 +165,7 @@ function VirtualHexDump({ diff, side, containerHeight, jumpToOffset, onContainer
                 diffBytes={side === 'left' ? diff.rightBytes : diff.leftBytes}
                 diffMask={diff.diffMask}
                 side={side}
+                onHoverByte={onHoverByte}
               />
             )
           })}
@@ -256,6 +264,7 @@ export function HexMode() {
   const [jumpOffset, setJumpOffset] = useState<number | undefined>(undefined)
   const [diffRegionIdx, setDiffRegionIdx] = useState(0)
   const [showStats, setShowStats] = useState(false)
+  const [hoveredOffset, setHoveredOffset] = useState<number | null>(null)
   const leftRef = useRef<HTMLDivElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
   const [paneHeight, setPaneHeight] = useState(400)
@@ -541,6 +550,7 @@ export function HexMode() {
                 diff={diff} side="left" containerHeight={paneHeight} jumpToOffset={jumpOffset}
                 onContainerReady={(el) => { syncContainersRef.current.left = el }}
                 onSyncScroll={(top) => handleSyncScroll('left', top)}
+                onHoverByte={setHoveredOffset}
               />
             </div>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -552,6 +562,7 @@ export function HexMode() {
                 diff={diff} side="right" containerHeight={paneHeight} jumpToOffset={jumpOffset}
                 onContainerReady={(el) => { syncContainersRef.current.right = el }}
                 onSyncScroll={(top) => handleSyncScroll('right', top)}
+                onHoverByte={setHoveredOffset}
               />
             </div>
           </div>
@@ -617,6 +628,24 @@ export function HexMode() {
             </>
           )}
           {!diff && <span>Drop two files to compare their bytes</span>}
+          {hoveredOffset !== null && diff && (() => {
+            const lb = diff.leftBytes
+            const rb = diff.rightBytes
+            const o = hoveredOffset
+            const readU16LE = (b: Uint8Array) => o + 1 < b.length ? b[o] | (b[o + 1] << 8) : null
+            const readU32LE = (b: Uint8Array) => o + 3 < b.length ? (b[o] | (b[o+1]<<8) | (b[o+2]<<16) | (b[o+3]<<24)) >>> 0 : null
+            const readI8 = (b: Uint8Array) => o < b.length ? (b[o] >= 128 ? b[o] - 256 : b[o]) : null
+            return (
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--text-dim)', display: 'flex', gap: 10 }}>
+                <span>@0x{formatOffset(o)}</span>
+                {o < lb.length && <span title="Unsigned byte">u8: {lb[o]}</span>}
+                {readI8(lb) !== null && <span title="Signed byte">i8: {readI8(lb)}</span>}
+                {readU16LE(lb) !== null && <span title="Unsigned 16-bit LE">u16: {readU16LE(lb)}</span>}
+                {readU32LE(lb) !== null && <span title="Unsigned 32-bit LE">u32: {readU32LE(lb)}</span>}
+                {o < lb.length && <span title="ASCII character">{toAscii(lb[o]) !== '·' ? `'${toAscii(lb[o])}'` : ''}</span>}
+              </span>
+            )
+          })()}
         </div>
         <div style={{ fontSize: 11, display: 'flex', gap: 12 }}>
           {leftFile && <span>L: {leftFile.size.toLocaleString()} B</span>}
