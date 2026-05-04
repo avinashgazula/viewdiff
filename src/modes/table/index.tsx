@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Papa from 'papaparse'
 import { ModeTabs } from '../../components/mode-tabs'
 import { useTheme } from '../../hooks/use-theme'
@@ -142,6 +142,141 @@ function getColumns(leftRows: Row[], rightRows: Row[], hasHeader: boolean): { he
   return { headers, colMap, numCols }
 }
 
+interface ColStats {
+  count: number
+  empty: number
+  unique: number
+  isNumeric: boolean
+  min: number | null
+  max: number | null
+  mean: number | null
+  median: number | null
+  top: Array<{ val: string; n: number }>
+}
+
+function computeColStats(values: string[]): ColStats {
+  const nonEmpty = values.filter((v) => v !== '')
+  const empty = values.length - nonEmpty.length
+  const freq = new Map<string, number>()
+  const nums: number[] = []
+  let allNum = true
+
+  for (const v of nonEmpty) {
+    freq.set(v, (freq.get(v) ?? 0) + 1)
+    const n = Number(v)
+    if (!Number.isNaN(n) && v.trim() !== '') nums.push(n)
+    else allNum = false
+  }
+
+  const isNumeric = allNum && nums.length > 0
+  let min: number | null = null, max: number | null = null, mean: number | null = null, median: number | null = null
+  if (isNumeric) {
+    min = Math.min(...nums)
+    max = Math.max(...nums)
+    mean = nums.reduce((a, b) => a + b, 0) / nums.length
+    const s = [...nums].sort((a, b) => a - b)
+    median = s.length % 2 === 0 ? (s[s.length / 2 - 1] + s[s.length / 2]) / 2 : s[Math.floor(s.length / 2)]
+  }
+
+  const top = [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([val, n]) => ({ val, n }))
+  return { count: nonEmpty.length, empty, unique: freq.size, isNumeric, min, max, mean, median, top }
+}
+
+function StatSection({ label, s }: { label: string; s: ColStats }): ReactNode {
+  return (
+    <div>
+      <div style={{ fontSize: 10, fontWeight: 650, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-dim)', marginBottom: 6 }}>{label}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 8px', fontSize: 11.5 }}>
+        <span style={{ color: 'var(--text-dim)' }}>Count</span><span>{s.count}</span>
+        <span style={{ color: 'var(--text-dim)' }}>Empty</span><span>{s.empty}</span>
+        <span style={{ color: 'var(--text-dim)' }}>Unique</span><span>{s.unique}</span>
+        {s.isNumeric && <>
+          <span style={{ color: 'var(--text-dim)' }}>Min</span><span>{s.min}</span>
+          <span style={{ color: 'var(--text-dim)' }}>Max</span><span>{s.max}</span>
+          <span style={{ color: 'var(--text-dim)' }}>Mean</span><span>{s.mean !== null ? s.mean.toFixed(2) : '—'}</span>
+          <span style={{ color: 'var(--text-dim)' }}>Median</span><span>{s.median !== null ? s.median.toFixed(2) : '—'}</span>
+        </>}
+      </div>
+      {s.top.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 4 }}>Top values</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {s.top.map(({ val, n }) => (
+              <div key={val} style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                <div style={{
+                  height: 14, background: 'var(--accent)', borderRadius: 2, opacity: 0.65, flexShrink: 0,
+                  width: s.count > 0 ? `${Math.max(2, Math.round((n / s.count) * 56))}px` : '2px',
+                }} />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{val || '(empty)'}</span>
+                <span style={{ fontSize: 10.5, color: 'var(--text-dim)', flexShrink: 0 }}>{n}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ColStatsPopup({ colIdx, x, y, headers, filteredRows, colMap, hasHeader, onClose }: {
+  colIdx: number
+  x: number
+  y: number
+  headers: string[]
+  filteredRows: DiffRow[]
+  colMap: ColMap
+  hasHeader: boolean
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    function handleClick(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) onClose() }
+    document.addEventListener('keydown', handleKey)
+    document.addEventListener('mousedown', handleClick)
+    return () => { document.removeEventListener('keydown', handleKey); document.removeEventListener('mousedown', handleClick) }
+  }, [onClose])
+
+  const dataRows = hasHeader ? filteredRows.slice(1) : filteredRows
+  const mappedIdx = colMap[colIdx] >= 0 ? colMap[colIdx] : colIdx
+  const leftVals = dataRows.map((r) => r.left?.[colIdx] ?? '')
+  const rightVals = dataRows.map((r) => r.right?.[mappedIdx] ?? '')
+  const leftStats = computeColStats(leftVals)
+  const rightStats = computeColStats(rightVals)
+  const colName = headers[colIdx] ?? `Col ${colIdx + 1}`
+
+  const W = 360
+  const px = Math.min(x, window.innerWidth - W - 12)
+  const py = Math.min(y + 4, window.innerHeight - 460)
+
+  return (
+    <div
+      ref={ref}
+      role="dialog"
+      aria-label={`Statistics for ${colName}`}
+      style={{
+        position: 'fixed', left: px, top: py, zIndex: 9000,
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        borderRadius: 10, padding: '14px 16px',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.3)',
+        width: W, maxHeight: 500, overflowY: 'auto',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <span style={{ fontSize: 13, fontWeight: 650, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {colName}
+        </span>
+        <button className="btn icon" onClick={onClose} aria-label="Close" style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>×</button>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <StatSection label="Original" s={leftStats} />
+        <StatSection label="Modified" s={rightStats} />
+      </div>
+    </div>
+  )
+}
+
 const ROW_HEIGHT = 34
 const HEADER_HEIGHT = 38
 
@@ -248,6 +383,7 @@ export function TableMode() {
   const [hiddenCols, setHiddenCols] = useState<Set<number>>(new Set())
   const [colMenuOpen, setColMenuOpen] = useState(false)
   const colMenuRef = useRef<HTMLDivElement>(null)
+  const [statsPopup, setStatsPopup] = useState<{ colIdx: number; x: number; y: number } | null>(null)
 
   // Load from URL on mount
   useEffect(() => {
@@ -589,9 +725,10 @@ export function TableMode() {
                       role="button"
                       tabIndex={0}
                       onClick={() => handleSortClick(ci)}
+                      onContextMenu={(e) => { e.preventDefault(); setStatsPopup({ colIdx: ci, x: e.clientX, y: e.clientY }) }}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSortClick(ci) } }}
                       style={{ cursor: 'pointer', userSelect: 'none', color: isSorted ? 'var(--accent)' : undefined }}
-                      title={`Sort by ${h}`}
+                      title={`Click to sort · Right-click for column statistics`}
                       aria-sort={isSorted ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
                     >
                       {si === 0 ? h : (colMap[ci] >= 0 ? headers[colMap[ci]] : h)}
@@ -628,6 +765,19 @@ export function TableMode() {
           {rowFilter.trim() && hasDiff ? ` · ${Math.max(0, filteredRows.length - (hasHeader ? 1 : 0))} rows` : ''}
         </div>
       </div>
+
+      {statsPopup && (
+        <ColStatsPopup
+          colIdx={statsPopup.colIdx}
+          x={statsPopup.x}
+          y={statsPopup.y}
+          headers={headers}
+          filteredRows={filteredRows}
+          colMap={colMap}
+          hasHeader={hasHeader}
+          onClose={() => setStatsPopup(null)}
+        />
+      )}
     </div>
   )
 }

@@ -19,7 +19,7 @@ const GROUPS: ShortcutGroup[] = [
       { keys: 'Ctrl+?', label: 'Keyboard shortcuts' },
       { keys: 'Ctrl+G', label: 'Go to line' },
       { keys: 'Ctrl+J', label: 'Cycle theme' },
-      { keys: 'Alt+1–8', label: 'Navigate modes (Text/Table/JSON/Image/Git/Hex/Folder/3-Way)' },
+      { keys: 'Alt+1–9', label: 'Navigate modes (Text/Table/JSON/XML/Image/Git/Hex/Folder/3-Way)' },
     ],
   },
   {
