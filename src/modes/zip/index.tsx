@@ -59,13 +59,14 @@ function dataToText(data: Uint8Array): string {
   return new TextDecoder('utf-8', { fatal: false }).decode(data)
 }
 
-function getFileMode(path: string): 'json' | 'yaml' | 'xml' | 'markdown' | 'env' | 'table' | 'text' {
+function getFileMode(path: string): 'json' | 'yaml' | 'xml' | 'markdown' | 'toml' | 'env' | 'table' | 'text' {
   const filename = path.split('/').pop()?.toLowerCase() ?? ''
   const ext = filename.split('.').pop() ?? ''
   if (ext === 'json') return 'json'
   if (['yaml', 'yml'].includes(ext)) return 'yaml'
   if (['xml', 'xhtml', 'svg', 'xsd', 'xsl', 'rss', 'atom'].includes(ext)) return 'xml'
   if (['md', 'markdown', 'mdx'].includes(ext)) return 'markdown'
+  if (ext === 'toml') return 'toml'
   if (['csv', 'tsv'].includes(ext)) return 'table'
   if (['env', 'ini', 'properties', 'cfg', 'conf'].includes(ext) || filename.startsWith('.env')) return 'env'
   return 'text'
