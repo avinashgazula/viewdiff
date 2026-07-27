@@ -85,6 +85,8 @@ export async function decodeDiff(encoded: string): Promise<{ original: string; m
 }
 
 export function buildShareUrl(slug: string, encoded: string): string {
-  const base = window.location.origin + slug
-  return `${base}?d=${encodeURIComponent(encoded)}`
+  // Trailing slash matches the canonical form, so a shared link resolves
+  // directly instead of bouncing through a redirect first.
+  const path = slug === '/' ? '/' : `${slug}/`
+  return `${window.location.origin}${path}?d=${encodeURIComponent(encoded)}`
 }

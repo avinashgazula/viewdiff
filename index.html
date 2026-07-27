@@ -6,7 +6,6 @@
 
     <title>Diff Checker Online — Compare Text, Code & Files Free | viewdiff</title>
     <meta name="description" content="Free online diff checker to compare text, code, JSON, XML, YAML and more. Side-by-side or inline diff view with syntax highlighting for 30+ languages. No sign-up, no ads — paste and compare instantly. The fastest alternative to Diffchecker." />
-    <meta name="keywords" content="diff checker, diffchecker, text compare, compare text online, online diff, diff tool, text diff, compare two texts, find difference between two texts, code diff, compare code online, side by side comparison, compare strings online, text comparison tool, diff online, compare files online, json diff, xml diff, yaml diff, css diff, html diff, javascript diff, python diff, compare two strings, string diff, text difference finder, online text compare, free diff tool, code comparison tool, compare two files online" />
 
     <!-- Security -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
@@ -138,34 +137,54 @@
     }
     </script>
 
-    <!-- Structured Data: WebSite with SearchAction (sitelinks search box) -->
+    <!-- Structured Data: WebSite -->
+    <!-- No SearchAction here on purpose: the site has no search endpoint, and
+         `/?q=` did nothing. Declaring an action the site cannot perform is
+         invalid markup, not a free sitelinks search box. -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "viewdiff",
       "url": "https://viewdiff.app",
-      "description": "Free online diff checker to compare text, code, and data",
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": "https://viewdiff.app/?q={search_term_string}",
-        "query-input": "required name=search_term_string"
-      }
+      "description": "Free online diff checker to compare text, code, and data"
     }
     </script>
 
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>±</text></svg>">
+    <link rel="apple-touch-icon" href="/icon.svg">
+    <link rel="manifest" href="/manifest.webmanifest">
 
     <!-- Preconnect to font origins -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500&display=swap" as="style" />
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Loaded without blocking render: the stylesheet is fetched at high
+         priority as a preload, then promoted to a real stylesheet on load.
+         As a blocking <link> it cost two third-party round trips before the
+         first paint, which is paid directly out of LCP. -->
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500&display=swap"
+      onload="this.onload=null;this.rel='stylesheet'"
+    />
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500&display=swap" />
+    </noscript>
 
     <!-- Prevent layout shift: reserve space for the app shell before React mounts -->
     <style>
-      #root { height: 100vh; height: 100dvh; }
-      .seo-prerender { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+      #root { min-height: 100vh; min-height: 100dvh; }
+      /* Pre-rendered landing copy. This is real, visible page content — it is
+         what a reader sees below the tool before React hydrates. It must never
+         be hidden off-screen: that is cloaking, and search engines discount it. */
+      .seo-prerender {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 48px 24px 64px;
+        font-family: system-ui, sans-serif;
+        line-height: 1.7;
+      }
       /* Dark mode shell colors */
       @media (prefers-color-scheme: dark) {
         .app-shell { background: oklch(11% 0.01 260) !important; color: oklch(92% 0.006 260) !important; }
@@ -183,7 +202,7 @@
       <div class="app-shell" style="height:100vh;display:flex;flex-direction:column;background:oklch(97.5% 0.004 260);color:oklch(18% 0.01 260)">
         <nav class="app-shell-nav" style="display:flex;align-items:center;justify-content:space-between;padding:0 10px;height:46px;background:oklch(100% 0 0);border-bottom:1px solid oklch(90% 0.008 260)">
           <div style="display:flex;align-items:center;gap:12px">
-            <h1 class="app-shell-title" style="font-size:14px;font-weight:700;letter-spacing:-0.03em;margin:0;font-family:system-ui,sans-serif"><a href="/" style="text-decoration:none;color:inherit">viewdiff</a></h1>
+            <span class="app-shell-title" style="font-size:14px;font-weight:700;letter-spacing:-0.03em;margin:0;font-family:system-ui,sans-serif"><a href="/" style="text-decoration:none;color:inherit">viewdiff</a></span>
             <span class="app-shell-sub" style="font-size:12.5px;font-weight:450;color:oklch(50% 0.008 260);font-family:system-ui,sans-serif">compare anything</span>
           </div>
         </nav>
@@ -195,42 +214,42 @@
 
       <!-- Pre-rendered SEO content: visible to crawlers before JS loads, hidden visually -->
       <div class="seo-prerender">
-        <h2>Online diff checker — compare text, code & data</h2>
+        <h1>Online diff checker — compare text, code & data</h1>
         <p>viewdiff is a free online diff checker that compares any two texts and highlights every difference instantly. Supports 30+ programming languages with syntax highlighting, auto-formats code with Prettier, and runs 100% client-side. Your data never leaves your browser.</p>
 
         <h3>Compare any language</h3>
         <nav>
-          <a href="/diff-text">Compare Text Online</a>
-          <a href="/json-diff">JSON Diff</a>
-          <a href="/xml-diff">XML Diff</a>
-          <a href="/yaml-diff">YAML Diff</a>
-          <a href="/javascript-diff">JavaScript Diff</a>
-          <a href="/typescript-diff">TypeScript Diff</a>
-          <a href="/python-diff">Python Diff</a>
-          <a href="/java-diff">Java Diff</a>
-          <a href="/csharp-diff">C# Diff</a>
-          <a href="/cpp-diff">C++ Diff</a>
-          <a href="/c-diff">C Diff</a>
-          <a href="/go-diff">Go Diff</a>
-          <a href="/rust-diff">Rust Diff</a>
-          <a href="/ruby-diff">Ruby Diff</a>
-          <a href="/php-diff">PHP Diff</a>
-          <a href="/swift-diff">Swift Diff</a>
-          <a href="/kotlin-diff">Kotlin Diff</a>
-          <a href="/scala-diff">Scala Diff</a>
-          <a href="/sql-diff">SQL Diff</a>
-          <a href="/shell-diff">Shell Script Diff</a>
-          <a href="/css-diff">CSS Diff</a>
-          <a href="/scss-diff">SCSS Diff</a>
-          <a href="/less-diff">Less Diff</a>
-          <a href="/html-diff">HTML Diff</a>
-          <a href="/markdown-diff">Markdown Diff</a>
-          <a href="/graphql-diff">GraphQL Diff</a>
-          <a href="/dockerfile-diff">Dockerfile Diff</a>
-          <a href="/lua-diff">Lua Diff</a>
-          <a href="/r-diff">R Diff</a>
-          <a href="/perl-diff">Perl Diff</a>
-          <a href="/dart-diff">Dart Diff</a>
+          <a href="/diff-text/">Text diff</a>
+          <a href="/json-diff/">JSON diff</a>
+          <a href="/xml-diff/">XML diff</a>
+          <a href="/yaml-diff/">YAML diff</a>
+          <a href="/javascript-diff/">JavaScript diff</a>
+          <a href="/typescript-diff/">TypeScript diff</a>
+          <a href="/python-diff/">Python diff</a>
+          <a href="/java-diff/">Java diff</a>
+          <a href="/csharp-diff/">C# diff</a>
+          <a href="/cpp-diff/">C++ diff</a>
+          <a href="/c-diff/">C diff</a>
+          <a href="/go-diff/">Go diff</a>
+          <a href="/rust-diff/">Rust diff</a>
+          <a href="/ruby-diff/">Ruby diff</a>
+          <a href="/php-diff/">PHP diff</a>
+          <a href="/swift-diff/">Swift diff</a>
+          <a href="/kotlin-diff/">Kotlin diff</a>
+          <a href="/scala-diff/">Scala diff</a>
+          <a href="/sql-diff/">SQL diff</a>
+          <a href="/shell-diff/">Shell diff</a>
+          <a href="/css-diff/">CSS diff</a>
+          <a href="/scss-diff/">SCSS diff</a>
+          <a href="/less-diff/">Less diff</a>
+          <a href="/html-diff/">HTML diff</a>
+          <a href="/markdown-diff/">Markdown diff</a>
+          <a href="/graphql-diff/">GraphQL diff</a>
+          <a href="/dockerfile-diff/">Dockerfile diff</a>
+          <a href="/lua-diff/">Lua diff</a>
+          <a href="/r-diff/">R diff</a>
+          <a href="/perl-diff/">Perl diff</a>
+          <a href="/dart-diff/">Dart diff</a>
         </nav>
 
         <h3>Features</h3>
@@ -273,19 +292,19 @@
         <p>This tool requires JavaScript to run. Please enable JavaScript in your browser settings.</p>
         <h2>Diff tools by language</h2>
         <ul>
-          <li><a href="/diff-text">Compare Text Online</a></li>
-          <li><a href="/json-diff">JSON Diff</a></li>
-          <li><a href="/xml-diff">XML Diff</a></li>
-          <li><a href="/yaml-diff">YAML Diff</a></li>
-          <li><a href="/javascript-diff">JavaScript Diff</a></li>
-          <li><a href="/typescript-diff">TypeScript Diff</a></li>
-          <li><a href="/python-diff">Python Diff</a></li>
-          <li><a href="/java-diff">Java Diff</a></li>
-          <li><a href="/go-diff">Go Diff</a></li>
-          <li><a href="/rust-diff">Rust Diff</a></li>
-          <li><a href="/css-diff">CSS Diff</a></li>
-          <li><a href="/html-diff">HTML Diff</a></li>
-          <li><a href="/sql-diff">SQL Diff</a></li>
+          <li><a href="/diff-text/">Text diff</a></li>
+          <li><a href="/json-diff/">JSON diff</a></li>
+          <li><a href="/xml-diff/">XML diff</a></li>
+          <li><a href="/yaml-diff/">YAML diff</a></li>
+          <li><a href="/javascript-diff/">JavaScript diff</a></li>
+          <li><a href="/typescript-diff/">TypeScript diff</a></li>
+          <li><a href="/python-diff/">Python diff</a></li>
+          <li><a href="/java-diff/">Java diff</a></li>
+          <li><a href="/go-diff/">Go diff</a></li>
+          <li><a href="/rust-diff/">Rust diff</a></li>
+          <li><a href="/css-diff/">CSS diff</a></li>
+          <li><a href="/html-diff/">HTML diff</a></li>
+          <li><a href="/sql-diff/">SQL diff</a></li>
         </ul>
       </div>
     </noscript>

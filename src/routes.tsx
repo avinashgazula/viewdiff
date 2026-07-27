@@ -29,7 +29,10 @@ const catchAllRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([...pageRoutes, catchAllRoute])
 
-export const router = createRouter({ routeTree })
+// `trailingSlash: 'always'` makes every generated <Link> href match the
+// canonical URL exactly. Without it each internal link points at the
+// non-slash form and costs a 301 hop before the real page is reached.
+export const router = createRouter({ routeTree, trailingSlash: 'always' })
 
 declare module '@tanstack/react-router' {
   interface Register {

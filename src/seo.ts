@@ -1918,8 +1918,202 @@ class _CounterState extends State<Counter> {
       { q: 'Does it handle null safety?', a: 'Yes. Nullable types (?), late, and required keywords are syntax-highlighted.' },
     ],
   },
+
+  // ---------------------------------------------------------------------
+  // Workflow pages.
+  //
+  // The pages above are one-per-language and differ mainly by language name.
+  // These target specific tasks people actually search for, where the query
+  // is not "<language> diff" and where the answer is genuinely different.
+  // Each one is written for its own use case rather than filled from the
+  // language template — near-identical pages at scale are what Google's
+  // scaled-content and doorway-page policies are aimed at.
+  // ---------------------------------------------------------------------
+  {
+    slug: '/env-file-diff',
+    language: 'shell',
+    title: 'Compare .env Files — Find Missing Environment Variables',
+    description:
+      'Compare two .env files and find which environment variables are missing, renamed, or changed between them. Runs entirely in your browser, so secrets are never uploaded. Free, no sign-up.',
+    keywords:
+      'compare env files, .env diff, diff env files, compare environment variables, env file comparison, find missing env variables, compare .env.example, dotenv diff',
+    h1: 'Compare two .env files',
+    subtitle: 'Find the variable that is set in one environment and missing in the other — without uploading your secrets anywhere.',
+    intro:
+      'A broken deploy is very often one missing environment variable. Paste your local .env on the left and .env.example (or the staging/production set) on the right, and every key that exists on one side but not the other is highlighted immediately. Because viewdiff runs entirely in your browser and never sends a request with your content, this is safe to do with real values — nothing is uploaded, logged, or stored. Sort both sides first if the files list keys in different orders.',
+    exampleOriginal: `DATABASE_URL=postgres://localhost:5432/app
+REDIS_URL=redis://localhost:6379
+STRIPE_SECRET_KEY=sk_test_xxx
+SESSION_SECRET=devsecret
+LOG_LEVEL=debug`,
+    exampleModified: `DATABASE_URL=postgres://localhost:5432/app
+REDIS_URL=redis://localhost:6379
+STRIPE_SECRET_KEY=sk_test_xxx
+SESSION_SECRET=devsecret
+SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
+LOG_LEVEL=info`,
+    features: [
+      'Spot environment variables present in one file but missing in the other',
+      'Shell-style highlighting for KEY=value pairs and comments',
+      'Ignore whitespace to skip formatting-only differences',
+      'Ignore case when comparing key names',
+      'Nothing is uploaded — safe to paste files containing real secrets',
+      'Compare .env against .env.example to find undocumented variables',
+    ],
+    faq: [
+      { q: 'Is it safe to paste a .env file with real secrets?', a: 'The comparison happens entirely in your browser — viewdiff never sends your content to a server, so nothing is transmitted or stored. That said, treat any browser tab as you would any other place you paste a secret, and avoid using the Share button for a diff containing live credentials, since that encodes the content into the URL.' },
+      { q: 'How do I find which environment variables are missing?', a: 'Paste both files and look for lines highlighted on only one side. A line present on the left but not the right is a variable defined locally but missing from the other environment.' },
+      { q: 'My two .env files list keys in a different order. Can I still compare them?', a: 'A line diff compares position by position, so reordered keys show up as changes. Sort both files alphabetically before pasting and the comparison becomes purely about which keys and values differ.' },
+      { q: 'Can I compare .env against .env.example?', a: 'Yes — that is the most common use. It shows which variables the example file documents that your local file has not set, and which variables you have added that were never documented.' },
+      { q: 'Does it understand comments and blank lines?', a: 'Yes. Shell-style highlighting is applied, so # comments are visually distinct from real assignments. Enable "Ignore whitespace" if blank-line differences add noise.' },
+    ],
+  },
+  {
+    slug: '/compare-lists',
+    language: 'plaintext',
+    title: 'Compare Two Lists Online — Find What Is Missing or Added',
+    description:
+      'Paste two lists and see which entries were added, removed, or changed. Works for emails, SKUs, IDs, usernames, or any line-separated list. Free, private, no sign-up.',
+    keywords:
+      'compare two lists, compare lists online, find differences between two lists, list comparison tool, compare two columns, find missing items in list, compare two sets of data',
+    h1: 'Compare two lists',
+    subtitle: 'Paste one item per line on each side and see exactly which entries were added and which disappeared.',
+    intro:
+      'Comparing two exported lists — email addresses, SKUs, user IDs, filenames, feature flags — is a spreadsheet chore that takes seconds here. Put one item per line on each side and every entry that exists in only one list is highlighted. For this to work well, both lists need to be in the same order, so sort them first: a line-based diff reports a moved item as one removal plus one addition. Everything runs in your browser, which matters when the list is customer data.',
+    exampleOriginal: `alice@example.com
+bob@example.com
+carol@example.com
+dave@example.com`,
+    exampleModified: `alice@example.com
+carol@example.com
+dave@example.com
+erin@example.com`,
+    features: [
+      'See which entries exist in one list but not the other',
+      'Works with any line-separated data — emails, IDs, SKUs, filenames',
+      'Ignore case for lists that differ only in capitalisation',
+      'Ignore whitespace to skip trailing-space differences',
+      'No upload — safe for lists containing customer data',
+      'Share the comparison via URL',
+    ],
+    faq: [
+      { q: 'How do I compare two lists?', a: 'Put one item per line, paste the first list on the left and the second on the right. Entries highlighted on one side only are the ones that differ.' },
+      { q: 'Why does everything show as changed?', a: 'Almost always because the two lists are in different orders. A line diff compares line 1 to line 1, line 2 to line 2, and so on, so a single moved item shifts everything after it. Sort both lists before pasting.' },
+      { q: 'Can I compare two columns from a spreadsheet?', a: 'Yes. Copy one column and paste it on the left, copy the other and paste it on the right — a copied spreadsheet column arrives as one value per line already.' },
+      { q: 'Can it find duplicates within a single list?', a: 'No. This compares two lists against each other; it does not deduplicate one list. Sort the list and duplicates will at least sit next to each other.' },
+      { q: 'Is my list uploaded anywhere?', a: 'No. The comparison runs entirely in your browser, so lists containing emails or other personal data never leave your machine.' },
+      { q: 'Is the comparison case-sensitive?', a: 'By default yes. Open Settings and enable "Ignore case" to treat Alice@example.com and alice@example.com as the same entry.' },
+    ],
+  },
+  {
+    slug: '/kubernetes-yaml-diff',
+    language: 'yaml',
+    title: 'Kubernetes YAML Diff — Compare Manifests Online Free',
+    description:
+      'Compare two Kubernetes manifests and see exactly which fields changed between them. YAML syntax highlighting, side-by-side view, and no upload — safe for cluster configs. Free, no sign-up.',
+    keywords:
+      'kubernetes yaml diff, compare kubernetes manifests, k8s diff, compare deployment yaml, kubectl diff online, helm output diff, compare k8s configs',
+    h1: 'Compare two Kubernetes manifests',
+    subtitle: 'See which fields actually changed between two Deployments, ConfigMaps, or rendered Helm templates.',
+    intro:
+      'When a rollout behaves differently than expected, the fastest answer is usually a field-by-field comparison of the manifest that is running against the one you meant to apply. Paste both YAML documents here and every changed field — image tag, replica count, resource limit, env var, probe threshold — is highlighted with YAML-aware syntax colouring. It works equally well on the rendered output of `helm template` or `kustomize build`, which is where most surprises actually come from. Nothing is uploaded, so this is safe for manifests describing real infrastructure.',
+    exampleOriginal: `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+        - name: api
+          image: registry.example.com/api:1.4.2
+          resources:
+            limits:
+              memory: 512Mi`,
+    exampleModified: `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+spec:
+  replicas: 4
+  template:
+    spec:
+      containers:
+        - name: api
+          image: registry.example.com/api:1.5.0
+          resources:
+            limits:
+              memory: 1Gi`,
+    features: [
+      'YAML syntax highlighting tuned for Kubernetes manifests',
+      'Spot changed image tags, replica counts, and resource limits at a glance',
+      'Compare rendered helm template or kustomize build output',
+      'Side-by-side and inline views',
+      'Ignore whitespace to skip indentation-only noise',
+      'No upload — safe for manifests describing real clusters',
+    ],
+    faq: [
+      { q: 'How is this different from kubectl diff?', a: 'kubectl diff compares your local manifest against live cluster state and needs cluster access. This compares any two pieces of YAML you can paste — a manifest against a rendered template, one environment against another, or the output of two Helm releases — with no cluster connection at all.' },
+      { q: 'Can I compare Helm chart output?', a: 'Yes, and it is one of the better uses. Run helm template for each release or values file, then paste the two rendered outputs to see exactly what your values change produced.' },
+      { q: 'Why do reordered keys show up as changes?', a: 'This is a text diff, so it compares line by line and does not know that YAML mappings are unordered. Two manifests that are semantically identical but list keys in a different order will show differences. Rendering both through the same tool first normalises the ordering.' },
+      { q: 'Does it validate my YAML?', a: 'The editor flags syntax errors in the gutter, but it does not validate manifests against the Kubernetes schema — use kubeval or kubeconform for that.' },
+      { q: 'Can I compare multi-document YAML files?', a: 'Yes. Files with multiple documents separated by --- are compared as plain text, so all documents are included.' },
+      { q: 'Is it safe to paste manifests from a production cluster?', a: 'The comparison runs entirely in your browser and nothing is sent to a server. Note that manifests can contain Secret values, so avoid using the Share button for those, since sharing encodes the content into the URL.' },
+    ],
+  },
 ]
 
 export function getPageBySlug(slug: string): PageSeo {
   return pages.find((p) => p.slug === slug) ?? pages[0]
+}
+
+/**
+ * Short, human-readable name for a page, used as the anchor text of internal
+ * links ("JSON diff", "C++ diff").
+ *
+ * These were previously derived by string-replacing pieces out of `h1`, which
+ * only worked for h1s phrased "Compare two X files" and produced broken labels
+ * like "texts diff" and "Compare SQL queries diff" for the rest. Anchor text is
+ * a ranking signal for the page being linked to, so it is spelled out here.
+ */
+const NAV_LABELS: Record<string, string> = {
+  '/diff-text': 'Text',
+  '/json-diff': 'JSON',
+  '/xml-diff': 'XML',
+  '/yaml-diff': 'YAML',
+  '/javascript-diff': 'JavaScript',
+  '/typescript-diff': 'TypeScript',
+  '/python-diff': 'Python',
+  '/css-diff': 'CSS',
+  '/html-diff': 'HTML',
+  '/sql-diff': 'SQL',
+  '/scss-diff': 'SCSS',
+  '/less-diff': 'Less',
+  '/markdown-diff': 'Markdown',
+  '/java-diff': 'Java',
+  '/csharp-diff': 'C#',
+  '/cpp-diff': 'C++',
+  '/c-diff': 'C',
+  '/go-diff': 'Go',
+  '/rust-diff': 'Rust',
+  '/ruby-diff': 'Ruby',
+  '/php-diff': 'PHP',
+  '/swift-diff': 'Swift',
+  '/kotlin-diff': 'Kotlin',
+  '/scala-diff': 'Scala',
+  '/shell-diff': 'Shell',
+  '/graphql-diff': 'GraphQL',
+  '/dockerfile-diff': 'Dockerfile',
+  '/lua-diff': 'Lua',
+  '/r-diff': 'R',
+  '/perl-diff': 'Perl',
+  '/dart-diff': 'Dart',
+  '/env-file-diff': '.env file',
+  '/compare-lists': 'List',
+  '/kubernetes-yaml-diff': 'Kubernetes manifest',
+}
+
+export function navLabel(slug: string): string {
+  return `${NAV_LABELS[slug] ?? slug.replace(/^\/|-diff$/g, '')} diff`
 }

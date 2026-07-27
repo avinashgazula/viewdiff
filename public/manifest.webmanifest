@@ -1,0 +1,30 @@
+{
+  "name": "viewdiff — Online Diff Checker",
+  "short_name": "viewdiff",
+  "description": "Compare text, code, JSON, XML and YAML side-by-side. Runs entirely in your browser.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1a1a24",
+  "theme_color": "#1a1a24",
+  "categories": ["developer", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    { "name": "JSON diff", "url": "/json-diff/" },
+    { "name": "YAML diff", "url": "/yaml-diff/" },
+    { "name": "Text diff", "url": "/diff-text/" }
+  ]
+}

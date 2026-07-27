@@ -105,7 +105,12 @@ body {
   font-family: var(--font-sans);
   background: var(--bg);
   color: var(--text);
-  overflow: hidden;
+  /* Horizontal overflow stays clipped, but the page MUST scroll vertically:
+     the tool occupies the first viewport and the landing content sits below it.
+     Locking this to `hidden` makes every word of that content unreachable to
+     both readers and search engines. */
+  overflow-x: hidden;
+  overflow-y: auto;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background 0.3s var(--ease-out), color 0.3s var(--ease-out);
@@ -782,7 +787,19 @@ kbd {
   margin: 0 auto;
   padding: 48px 24px 64px;
   color: var(--text);
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: var(--font-sans);
+}
+
+/* Marks the boundary between the tool viewport and the content below it, so
+   the page reads as "there is more here" rather than ending at the fold. */
+.landing-content::before {
+  content: '';
+  display: block;
+  width: 56px;
+  height: 2px;
+  margin: 0 auto 40px;
+  border-radius: 2px;
+  background: var(--border);
 }
 
 .landing-hero {

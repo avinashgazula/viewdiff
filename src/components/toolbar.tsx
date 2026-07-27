@@ -43,8 +43,10 @@ export const Toolbar = memo(function Toolbar({
       style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
     >
       <div className="toolbar-brand">
+        {/* Brand wordmark, not the page heading. The real <h1> belongs to the
+            landing content, where it differs per page and carries the keyword. */}
         <Link to="/" className="toolbar-title-link">
-          <h1 className="toolbar-title">diff</h1>
+          <span className="toolbar-title">diff</span>
         </Link>
         <span className="toolbar-subtitle">compare anything</span>
       </div>

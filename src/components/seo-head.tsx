@@ -24,8 +24,10 @@ export function SeoHead({ page }: Props) {
 
     const url = canonicalUrl(page.slug)
 
+    // `keywords` is deliberately not emitted — Google has ignored it since 2009
+    // and a long stuffed list is, if anything, a negative quality signal.
+    // page.keywords is kept in seo.ts purely as a record of target queries.
     setMeta('name', 'description', page.description)
-    setMeta('name', 'keywords', page.keywords)
 
     // Canonical
     let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null

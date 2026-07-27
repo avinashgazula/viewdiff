@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { Link } from '@tanstack/react-router'
 import type { PageSeo } from '../seo'
-import { pages } from '../seo'
+import { navLabel, pages } from '../seo'
 
 interface Props {
   page: PageSeo
@@ -15,7 +15,7 @@ export const LandingContent = memo(function LandingContent({ page, isHome }: Pro
     <section className="landing-content" aria-label="About this tool">
       {/* Intro */}
       <div className="landing-hero">
-        <h2 className="landing-h1">{page.h1}</h2>
+        <h1 className="landing-h1">{page.h1}</h1>
         <p className="landing-subtitle">{page.subtitle}</p>
         <p className="landing-intro">{page.intro}</p>
       </div>
@@ -95,7 +95,7 @@ export const LandingContent = memo(function LandingContent({ page, isHome }: Pro
         <nav className="landing-links" aria-label="Other diff tools">
           {otherPages.map((p) => (
             <Link key={p.slug} to={p.slug} className="landing-link">
-              {p.h1.replace('Compare two ', '').replace(' files', '').replace(' online', '').replace(' scripts', '')} diff
+              {navLabel(p.slug)}
             </Link>
           ))}
         </nav>

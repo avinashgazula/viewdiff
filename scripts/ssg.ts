@@ -3,10 +3,10 @@
  *
  * Runs after `vite build` and generates a dedicated HTML file for every route
  * defined in src/seo.ts.  Each file contains:
- *   - Correct <title>, <meta description>, <meta keywords>, <link rel="canonical">
+ *   - Correct <title>, <meta description>, <link rel="canonical">
  *   - Open Graph and Twitter meta tags
  *   - JSON-LD structured data (WebApplication, FAQPage, BreadcrumbList, WebPage)
- *   - Pre-rendered landing content (h2, features, FAQ, internal links)
+ *   - Pre-rendered landing content (h1, features, FAQ, internal links)
  *   - The same JS/CSS bundle references so the SPA hydrates on top
  *
  * The result: search-engine crawlers get full, keyword-rich HTML for every page
@@ -26,7 +26,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = resolve(__dirname, '..')
 const seoModule = await import(pathToFileURL(resolve(root, 'src/seo.ts')).href)
-const { pages, canonicalUrl } = seoModule
+const { pages, canonicalUrl, navLabel } = seoModule
 
 const BASE_URL = 'https://viewdiff.app'
 const DIST = resolve(root, 'dist')
@@ -51,6 +51,40 @@ function escHtml(s: string): string {
 function escAttr(s: string): string {
   return s.replace(/"/g, '&quot;').replace(/&/g, '&amp;')
 }
+
+/**
+ * Head tags that depend on deployment secrets rather than page content.
+ *
+ * Both are opt-in via environment variables so the values never live in the
+ * repo. Set them in the Cloudflare deploy environment (or a local .env) and
+ * rebuild — no code change required:
+ *
+ *   GSC_VERIFICATION   Google Search Console verification token. Without this
+ *                      there is no way to see impressions, clicks, average
+ *                      position, or to submit the sitemap for indexing.
+ *   CF_ANALYTICS_TOKEN Cloudflare Web Analytics beacon token. Cookieless and
+ *                      client-side only, so it does not undercut the privacy
+ *                      claim the site is built on.
+ */
+function buildDeploymentTags(): string {
+  const tags: string[] = []
+
+  const gsc = process.env.GSC_VERIFICATION
+  if (gsc) {
+    tags.push(`<meta name="google-site-verification" content="${escAttr(gsc)}" />`)
+  }
+
+  const cfToken = process.env.CF_ANALYTICS_TOKEN
+  if (cfToken) {
+    tags.push(
+      `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='${JSON.stringify({ token: cfToken })}'></script>`,
+    )
+  }
+
+  return tags.length ? `\n    ${tags.join('\n    ')}\n` : ''
+}
+
+const deploymentTags = buildDeploymentTags()
 
 /** Build JSON-LD structured data for a page */
 function buildStructuredData(page: (typeof pages)[0]): string {
@@ -119,7 +153,7 @@ function buildPrerenderedContent(page: (typeof pages)[0]): string {
 
   let html = `
       <div class="seo-prerender">
-        <h2>${escHtml(page.h1)}</h2>
+        <h1>${escHtml(page.h1)}</h1>
         <p>${escHtml(page.intro)}</p>`
 
   // "How it works" for homepage
@@ -168,7 +202,7 @@ function buildPrerenderedContent(page: (typeof pages)[0]): string {
   html += `
         <h3>More diff tools</h3>
         <nav>${otherPages.map((p: (typeof pages)[0]) => `
-          <a href="${p.slug}">${escHtml(p.h1.replace('Compare two ', '').replace(' files', '').replace(' online', '').replace(' scripts', ''))} diff</a>`).join('')}
+          <a href="${p.slug}/">${escHtml(navLabel(p.slug))}</a>`).join('')}
         </nav>
       </div>`
 
@@ -193,19 +227,13 @@ for (const page of pages) {
     `<meta name="description" content="${escAttr(page.description)}"`,
   )
 
-  // 3. Replace meta keywords
-  html = html.replace(
-    /<meta name="keywords" content="[^"]*"/,
-    `<meta name="keywords" content="${escAttr(page.keywords)}"`,
-  )
-
-  // 4. Replace canonical URL
+  // 3. Replace canonical URL
   html = html.replace(
     /<link rel="canonical" href="[^"]*"/,
     `<link rel="canonical" href="${escAttr(url)}"`,
   )
 
-  // 5. Replace OG tags
+  // 4. Replace OG tags
   html = html.replace(
     /<meta property="og:title" content="[^"]*"/,
     `<meta property="og:title" content="${escAttr(page.title)}"`,
@@ -223,7 +251,7 @@ for (const page of pages) {
     `<meta property="og:image:alt" content="${escAttr(page.h1)}"`,
   )
 
-  // 6. Replace Twitter tags
+  // 5. Replace Twitter tags
   html = html.replace(
     /<meta name="twitter:title" content="[^"]*"/,
     `<meta name="twitter:title" content="${escAttr(page.title)}"`,
@@ -233,17 +261,22 @@ for (const page of pages) {
     `<meta name="twitter:description" content="${escAttr(page.description)}"`,
   )
 
-  // 7. Replace all structured data scripts with page-specific ones
+  // 6. Replace all structured data scripts with page-specific ones
   html = html.replace(
     /<!-- Structured Data:[\s\S]*?(?=<link rel="icon")/,
     `<!-- Structured Data -->\n    ${buildStructuredData(page)}\n\n    `,
   )
 
-  // 8. Replace pre-rendered SEO content
+  // 7. Replace pre-rendered SEO content
   html = html.replace(
     /<!-- Pre-rendered SEO content[\s\S]*?<\/div>\s*(?=<\/div>\s*<noscript>)/,
     `<!-- Pre-rendered SEO content: visible to crawlers before JS loads -->${buildPrerenderedContent(page)}\n    `,
   )
+
+  // 8. Inject deployment-specific head tags (search console, analytics)
+  if (deploymentTags) {
+    html = html.replace('</head>', `${deploymentTags}  </head>`)
+  }
 
   // 9. Write the file
   if (page.slug === '/') {
@@ -261,8 +294,42 @@ for (const page of pages) {
 
 console.log(`\n✅ SSG: Generated ${generated} pre-rendered HTML files in dist/`)
 
+if (!process.env.GSC_VERIFICATION) {
+  console.warn(
+    '⚠️  GSC_VERIFICATION is not set — Search Console is unverified, so search\n' +
+    '   impressions and clicks are not being measured and the sitemap cannot\n' +
+    '   be submitted. See README "Measuring traffic".',
+  )
+}
+
 // Show what was created
 for (const page of pages) {
   const path = page.slug === '/' ? '/index.html' : `${page.slug}/index.html`
   console.log(`   ${path}`)
 }
+
+// ---------------------------------------------------------------------------
+// Sitemap — derived from the same page list that produced the HTML above.
+// Hand-maintaining public/sitemap.xml meant it drifted out of sync with
+// src/seo.ts and carried a frozen <lastmod> that never reflected reality.
+// ---------------------------------------------------------------------------
+const lastmod = new Date().toISOString().slice(0, 10)
+
+const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${pages
+  .map((page: (typeof pages)[0]) => {
+    const isHome = page.slug === '/'
+    return `  <url>
+    <loc>${canonicalUrl(page.slug)}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>${isHome ? 'weekly' : 'monthly'}</changefreq>
+    <priority>${isHome ? '1.0' : '0.8'}</priority>
+  </url>`
+  })
+  .join('\n')}
+</urlset>
+`
+
+writeFileSync(resolve(DIST, 'sitemap.xml'), sitemap, 'utf-8')
+console.log(`\n✅ Sitemap: ${pages.length} URLs (lastmod ${lastmod})`)
